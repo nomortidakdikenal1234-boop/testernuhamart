@@ -909,6 +909,30 @@
 
     <!-- SUPABASE & ALPINE SCRIPT -->
     <script>
+        // SAFE WEBSOCKET GUARD FOR CANVAS / SANDBOX IFRAME ENVIRONMENTS
+        if (typeof window !== 'undefined' && window.WebSocket) {
+            const OriginalWebSocket = window.WebSocket;
+            window.WebSocket = function(url, protocols) {
+                try {
+                    return new OriginalWebSocket(url, protocols);
+                } catch (e) {
+                    console.warn('WebSocket connection suppressed in sandboxed environment:', e.message);
+                    return {
+                        addEventListener: function() {},
+                        removeEventListener: function() {},
+                        send: function() {},
+                        close: function() {},
+                        readyState: 3
+                    };
+                }
+            };
+            window.WebSocket.prototype = OriginalWebSocket.prototype;
+            window.WebSocket.CONNECTING = 0;
+            window.WebSocket.OPEN = 1;
+            window.WebSocket.CLOSING = 2;
+            window.WebSocket.CLOSED = 3;
+        }
+
         // INISIALISASI KONEKSI SUPABASE
         const SUPABASE_URL = 'https://hygkpfksrjzmlptbvngl.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5Z2twZmtzcmp6bWxwdGJ2bmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNjU1NTQsImV4cCI6MjEwMTg0MTU1NH0.Kr7T5I_CON3KSJgLdNRW2cbhhkPb_ABSGy4J4xNXGXA';
