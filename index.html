@@ -1227,6 +1227,10 @@
                 heroSubheadline: localStorage.getItem('nuha_hero_subheadline') || 'Saat ini kami sedang menambah daftar menu lebih banyak, silahkan hubungi admin untuk request!!',
                 openEditHeroModal: false,
                 
+                // TRACKING DELETED ITEMS TO PREVENT REAPPEARING ON REFRESH
+                deletedProductIds: JSON.parse(localStorage.getItem('nuha_deleted_product_ids') || '[]'),
+                deletedReviewIds: JSON.parse(localStorage.getItem('nuha_deleted_review_ids') || '[]'),
+
                 // INFAQ MODAL STATE (1st load + Reappears every 2 mins)
                 infaqModalOpen: true,
                 showQrisModal: false,
@@ -1331,7 +1335,6 @@
                 cart: [],
                 cartNotification: { show: false, product: null, variant: '', image: '', timer: null },
                 
-                // NEW PRODUCT INCLUDES WEIGHT FIELD (DEFAULT 250 GRAM)
                 newProduct: {
                     name: '',
                     category: 'Minuman',
@@ -1365,10 +1368,8 @@
                     this.fetchProducts();
                     this.fetchReviews();
 
-                    // MUNCULKAN IKLAN INFAQ PERTAMA KALI
                     this.infaqModalOpen = true;
 
-                    // TIMER REPEAT MUNCUL IKLAN INFAQ TIAP 2 MENIT (120,000 ms)
                     if (this.infaqIntervalTimer) clearInterval(this.infaqIntervalTimer);
                     this.infaqIntervalTimer = setInterval(() => {
                         this.infaqModalOpen = true;
@@ -1429,6 +1430,7 @@
                 },
 
                 async fetchProducts() {
+                    const localCustomProducts = JSON.parse(localStorage.getItem('nuha_local_products') || '[]');
                     try {
                         const { data, error } = await db
                             .from('products')
@@ -1436,18 +1438,41 @@
                             .order('id', { ascending: false });
 
                         if (!error && data && data.length > 0) {
-                            this.products = data.map(p => ({
+                            const combined = [...data, ...localCustomProducts];
+                            const uniqueMap = new Map();
+                            combined.forEach(p => uniqueMap.set(p.id, p));
+                            
+                            this.products = Array.from(uniqueMap.values()).map(p => ({
                                 ...p,
                                 weight: p.weight || 250,
                                 variants: Array.isArray(p.variants) ? p.variants : []
                             }));
+                        } else if (localCustomProducts.length > 0) {
+                            const combined = [...localCustomProducts, ...this.products];
+                            const uniqueMap = new Map();
+                            combined.forEach(p => uniqueMap.set(p.id, p));
+                            this.products = Array.from(uniqueMap.values());
                         }
                     } catch (e) {
                         console.warn('Using local fallback products:', e.message);
+                        if (localCustomProducts.length > 0) {
+                            const combined = [...localCustomProducts, ...this.products];
+                            const uniqueMap = new Map();
+                            combined.forEach(p => uniqueMap.set(p.id, p));
+                            this.products = Array.from(uniqueMap.values());
+                        }
                     }
+
+                    // Strict filter against deleted product IDs
+                    this.products = this.products.filter(p => 
+                        !this.deletedProductIds.includes(p.id) && 
+                        !this.deletedProductIds.includes(String(p.id)) &&
+                        !this.deletedProductIds.includes(Number(p.id))
+                    );
                 },
 
                 async fetchReviews() {
+                    const localCustomReviews = JSON.parse(localStorage.getItem('nuha_local_reviews') || '[]');
                     try {
                         const { data, error } = await db
                             .from('reviews')
@@ -1455,11 +1480,32 @@
                             .order('id', { ascending: false });
 
                         if (!error && data && data.length > 0) {
-                            this.reviews = data;
+                            const combined = [...data, ...localCustomReviews];
+                            const uniqueMap = new Map();
+                            combined.forEach(r => uniqueMap.set(r.id, r));
+                            this.reviews = Array.from(uniqueMap.values());
+                        } else if (localCustomReviews.length > 0) {
+                            const combined = [...localCustomReviews, ...this.reviews];
+                            const uniqueMap = new Map();
+                            combined.forEach(r => uniqueMap.set(r.id, r));
+                            this.reviews = Array.from(uniqueMap.values());
                         }
                     } catch (e) {
                         console.warn('Using local fallback reviews:', e.message);
+                        if (localCustomReviews.length > 0) {
+                            const combined = [...localCustomReviews, ...this.reviews];
+                            const uniqueMap = new Map();
+                            combined.forEach(r => uniqueMap.set(r.id, r));
+                            this.reviews = Array.from(uniqueMap.values());
+                        }
                     }
+
+                    // Strict filter against deleted review IDs
+                    this.reviews = this.reviews.filter(r => 
+                        !this.deletedReviewIds.includes(r.id) && 
+                        !this.deletedReviewIds.includes(String(r.id)) &&
+                        !this.deletedReviewIds.includes(Number(r.id))
+                    );
                 },
 
                 get searchResults() {
@@ -1634,22 +1680,30 @@
                         variants: parsedVariants
                     };
 
-                    const { data, error } = await db
-                        .from('products')
-                        .insert([newProductData])
-                        .select();
+                    let addedItem = null;
+                    try {
+                        const { data, error } = await db
+                            .from('products')
+                            .insert([newProductData])
+                            .select();
 
-                    if (error) {
-                        const fallbackData = {
-                            id: Date.now(),
-                            ...newProductData
-                        };
-                        this.products.unshift(fallbackData);
-                    } else if (data && data[0]) {
-                        data[0].variants = parsedVariants;
-                        data[0].weight = Number(this.newProduct.weight || 250);
-                        this.products.unshift(data[0]);
+                        if (!error && data && data[0]) {
+                            addedItem = { ...data[0], variants: parsedVariants, weight: Number(this.newProduct.weight || 250) };
+                        }
+                    } catch(e) {
+                        console.warn('Supabase add product error:', e);
                     }
+
+                    if (!addedItem) {
+                        addedItem = { id: Date.now(), ...newProductData };
+                    }
+
+                    this.products.unshift(addedItem);
+
+                    // Save to local products array
+                    const localProds = JSON.parse(localStorage.getItem('nuha_local_products') || '[]');
+                    localProds.unshift(addedItem);
+                    localStorage.setItem('nuha_local_products', JSON.stringify(localProds));
 
                     this.newProduct.name = '';
                     this.newProduct.price = '';
@@ -1664,31 +1718,51 @@
                 async deleteProduct(id) {
                     if (!confirm('Apakah Anda yakin ingin menghapus produk ini?')) return;
 
-                    const { error } = await db
-                        .from('products')
-                        .delete()
-                        .eq('id', id);
-
-                    if (error) {
-                        console.error(error);
+                    // Permanently record ID into deleted IDs list
+                    if (!this.deletedProductIds.includes(id)) {
+                        this.deletedProductIds.push(id);
+                        localStorage.setItem('nuha_deleted_product_ids', JSON.stringify(this.deletedProductIds));
                     }
+
+                    // Remove from local custom products if exists
+                    const localProds = JSON.parse(localStorage.getItem('nuha_local_products') || '[]');
+                    const updatedLocalProds = localProds.filter(p => p.id !== id);
+                    localStorage.setItem('nuha_local_products', JSON.stringify(updatedLocalProds));
+
+                    // Attempt Supabase deletion
+                    try {
+                        await db.from('products').delete().eq('id', id);
+                    } catch (e) {
+                        console.warn('Supabase delete error:', e);
+                    }
+
                     this.products = this.products.filter(p => p.id !== id);
-                    this.showToast('Produk berhasil dihapus!');
+                    this.showToast('Produk berhasil dihapus secara permanen!');
                 },
 
                 async deleteReview(id) {
                     if (!confirm('Apakah Anda yakin ingin menghapus ulasan ini?')) return;
 
-                    const { error } = await db
-                        .from('reviews')
-                        .delete()
-                        .eq('id', id);
-
-                    if (error) {
-                        console.error(error);
+                    // Permanently record ID into deleted review IDs list
+                    if (!this.deletedReviewIds.includes(id)) {
+                        this.deletedReviewIds.push(id);
+                        localStorage.setItem('nuha_deleted_review_ids', JSON.stringify(this.deletedReviewIds));
                     }
+
+                    // Remove from local custom reviews if exists
+                    const localRevs = JSON.parse(localStorage.getItem('nuha_local_reviews') || '[]');
+                    const updatedLocalRevs = localRevs.filter(r => r.id !== id);
+                    localStorage.setItem('nuha_local_reviews', JSON.stringify(updatedLocalRevs));
+
+                    // Attempt Supabase deletion
+                    try {
+                        await db.from('reviews').delete().eq('id', id);
+                    } catch (e) {
+                        console.warn('Supabase delete review error:', e);
+                    }
+
                     this.reviews = this.reviews.filter(r => r.id !== id);
-                    this.showToast('Ulasan berhasil dihapus!');
+                    this.showToast('Ulasan berhasil dihapus secara permanen!');
                 },
 
                 openQuickView(product) {
@@ -1906,16 +1980,30 @@
                         comment: this.newReview.comment
                     };
 
-                    const { data, error } = await db
-                        .from('reviews')
-                        .insert([reviewData])
-                        .select();
+                    let addedReview = null;
+                    try {
+                        const { data, error } = await db
+                            .from('reviews')
+                            .insert([reviewData])
+                            .select();
 
-                    if (error || !data) {
-                        this.reviews.unshift({ id: Date.now(), ...reviewData });
-                    } else {
-                        this.reviews.unshift(data[0]);
+                        if (!error && data && data[0]) {
+                            addedReview = data[0];
+                        }
+                    } catch(e) {
+                        console.warn('Supabase add review error:', e);
                     }
+
+                    if (!addedReview) {
+                        addedReview = { id: Date.now(), ...reviewData };
+                    }
+
+                    this.reviews.unshift(addedReview);
+
+                    // Save to local custom reviews array
+                    const localRevs = JSON.parse(localStorage.getItem('nuha_local_reviews') || '[]');
+                    localRevs.unshift(addedReview);
+                    localStorage.setItem('nuha_local_reviews', JSON.stringify(localRevs));
                     
                     this.newReview.name = '';
                     this.newReview.comment = '';
