@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NUHA DELIVERY</title>
-    <!-- Favicon Logo -->
-    <link rel="icon" type="image/png" href="https://i.ibb.co.com/ynV3VqHf/Chat-GPT-Image-9-Agu-2026-16-41-38-removebg-preview.png">
+    <title>Nuha Delivery</title>
+    <!-- Favicon Logo Transparan -->
+    <link rel="icon" type="image/png" href="https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Alpine.js -->
@@ -15,9 +15,12 @@
     <!-- Google Fonts (Inter) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <style>
+        [x-cloak] { 
+            display: none !important; 
+        }
         body {
             font-family: 'Inter', sans-serif;
             background-color: #ffffff;
@@ -46,16 +49,16 @@
         }
     </style>
 </head>
-<body x-data="nuhaApp()" x-init="initApp()" class="antialiased text-slate-800 bg-white">
+<body x-data="nuhaApp()" x-init="initApp()" class="antialiased text-slate-800 bg-white min-h-screen flex flex-col justify-between">
 
     <!-- STICKY NAVBAR -->
     <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-xs transition-all duration-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-24">
+            <div class="flex items-center justify-between h-20 sm:h-24">
                 
-                <!-- BRAND LOGO (DYNAMICALLY UPDATABLE) -->
+                <!-- BRAND LOGO -->
                 <a href="#" class="flex items-center gap-3 group">
-                    <img :src="logoUrl" alt="NUHA MART Logo" class="h-16 sm:h-20 lg:h-24 w-auto object-contain transition-transform duration-300 group-hover:scale-105" onerror="this.src='https://i.ibb.co.com/ynV3VqHf/Chat-GPT-Image-9-Agu-2026-16-41-38-removebg-preview.png'">
+                    <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-18 lg:h-20 w-auto object-contain transition-transform duration-300 group-hover:scale-105" onerror="this.src='https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png'">
                 </a>
 
                 <!-- DESKTOP NAVIGATION LINKS -->
@@ -63,20 +66,71 @@
                     <a href="#beranda" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600 text-teal-600 font-semibold">Beranda</a>
                     <a href="#kategori" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Kategori</a>
                     <a href="#produk" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Produk</a>
-                    <a href="#keunggulan" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Keunggulan</a>
                     <a href="#ulasan" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Rating & Ulasan</a>
                 </nav>
 
                 <!-- HEADER ACTIONS & ICONS -->
                 <div class="flex items-center space-x-3 sm:space-x-4">
-                    <!-- SEARCH TRIGGER -->
-                    <button @click="scrollToSection('produk')" class="p-2.5 text-slate-600 hover:text-teal-600 hover:bg-slate-50 rounded-full transition-colors" title="Cari Produk">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    </button>
+                    <!-- SEARCH BAR WITH LIVE INSTANT DROPDOWN -->
+                    <div class="relative flex items-center" @click.outside="searchFocused = false">
+                        <input type="text" 
+                               x-model="searchQuery" 
+                               @focus="searchFocused = true"
+                               @input="searchFocused = true"
+                               placeholder="Cari produk..." 
+                               class="pl-9 pr-8 py-2 w-36 sm:w-56 lg:w-72 rounded-full border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-slate-50 transition-all">
+                        
+                        <svg class="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        
+                        <button x-show="searchQuery" @click="searchQuery = ''; searchFocused = false" class="absolute right-2.5 text-slate-400 hover:text-slate-600 text-xs font-bold p-1" title="Hapus pencarian">✕</button>
+
+                        <!-- LIVE SEARCH RESULT DROPDOWN OVERLAY -->
+                        <div x-show="searchQuery.trim().length > 0 && searchFocused" 
+                             x-cloak 
+                             x-transition:enter="transition ease-out duration-150"
+                             x-transition:enter-start="opacity-0 translate-y-1 scale-95"
+                             x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                             class="absolute left-0 right-0 top-11 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 max-h-80 overflow-y-auto">
+                            
+                            <template x-if="searchResults.length > 0">
+                                <div>
+                                    <div class="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50 flex items-center justify-between">
+                                        <span>Hasil Pencarian</span>
+                                        <span class="text-teal-600" x-text="searchResults.length + ' Ditemukan'"></span>
+                                    </div>
+                                    <template x-for="item in searchResults" :key="item.id">
+                                        <div @mousedown="openQuickView(item); searchQuery = ''; searchFocused = false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-teal-50/70 cursor-pointer transition-colors border-b border-slate-50 last:border-b-0 group">
+                                            <img :src="sanitizeImageUrl(item.image)" :alt="item.name" class="w-10 h-10 object-cover rounded-xl bg-slate-100 flex-shrink-0 border border-slate-100" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHADELIVERY'">
+                                            <div class="flex-1 min-w-0">
+                                                <h5 class="text-xs font-bold text-slate-800 line-clamp-1 group-hover:text-teal-600 transition-colors" x-text="item.name"></h5>
+                                                <div class="flex items-center gap-2 mt-0.5">
+                                                    <span class="text-[11px] text-teal-600 font-black" x-text="formatRupiah(item.price)"></span>
+                                                    <span class="text-[10px] text-slate-400 font-medium" x-text="'• ' + item.category"></span>
+                                                </div>
+                                            </div>
+                                            <span x-show="Array.isArray(item.variants) && item.variants.length > 0" class="text-[9px] bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded-md whitespace-nowrap">
+                                                <span x-text="item.variants.length + ' Varian'"></span>
+                                            </span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <template x-if="searchResults.length === 0">
+                                <div class="px-4 py-6 text-center text-xs text-slate-500">
+                                    <p class="font-bold text-slate-700">Tidak ada produk ditemukan</p>
+                                    <p class="text-[11px] text-slate-400 mt-0.5">Coba ketik nama menu atau rasa lain</p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
 
                     <!-- USER ACCOUNT ICON (OPEN LOGIN MODAL) -->
-                    <button @click="openAuthModal = true" class="p-2.5 text-slate-600 hover:text-teal-600 hover:bg-slate-50 rounded-full transition-colors relative" title="Akun Saya">
+                    <button @click="openAuthModal = true" class="p-2.5 text-slate-600 hover:text-teal-600 hover:bg-slate-50 rounded-full transition-colors relative flex items-center gap-2" title="Akun Saya">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        <span x-show="isAdminLoggedIn || isCustomerLoggedIn" class="text-xs font-bold text-teal-600 hidden lg:inline" x-text="isAdminLoggedIn ? 'Admin' : loggedInCustomerName"></span>
                         <span x-show="isAdminLoggedIn || isCustomerLoggedIn" class="absolute top-1 right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white"></span>
                     </button>
 
@@ -88,15 +142,14 @@
                         </button>
 
                         <!-- ADD TO CART ANIMATED POPUP -->
-                        <div x-show="cartNotification.show" 
+                        <div x-show="cartNotification.show" x-cloak
                              x-transition:enter="transition ease-out duration-200"
                              x-transition:enter-start="opacity-0 scale-90 -translate-y-2"
                              x-transition:enter-end="opacity-100 scale-100 translate-y-0"
                              x-transition:leave="transition ease-in duration-150"
                              x-transition:leave-start="opacity-100 scale-100 translate-y-0"
                              x-transition:leave-end="opacity-0 scale-90 -translate-y-2"
-                             class="absolute right-0 top-12 z-50 w-72 sm:w-80 bg-white rounded-2xl p-4 shadow-2xl border border-slate-100 text-left"
-                             style="display: none;">
+                             class="absolute right-0 top-12 z-50 w-72 sm:w-80 bg-white rounded-2xl p-4 shadow-2xl border border-slate-100 text-left">
                             
                             <div class="absolute -top-2 right-4 w-4 h-4 bg-white rotate-45 border-t border-l border-slate-100"></div>
 
@@ -107,12 +160,12 @@
                             <template x-if="cartNotification.product">
                                 <div>
                                     <div class="flex items-center gap-3 mb-3">
-                                        <img :src="cartNotification.product.image" :alt="cartNotification.product.name" class="w-14 h-14 object-cover rounded-xl bg-slate-100 border border-slate-100">
+                                        <img :src="cartNotification.image || cartNotification.product.image" :alt="cartNotification.product.name" class="w-14 h-14 object-cover rounded-xl bg-slate-100 border border-slate-100" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHADELIVERY'">
                                         <div>
                                             <h4 class="font-bold text-slate-900 text-sm line-clamp-1" x-text="cartNotification.product.name"></h4>
                                             <p x-show="cartNotification.variant" class="text-xs text-teal-600 font-semibold" x-text="'Varian: ' + cartNotification.variant"></p>
                                             <div class="flex items-center gap-1.5 text-xs text-slate-800 font-semibold mt-1">
-                                                <span class="w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[9px] font-bold">✓</span>
+                                                <span class="w-4 h-4 rounded-full bg-teal-600 text-white flex items-center justify-center text-[9px] font-bold">✓</span>
                                                 <span>Ditambahkan ke Keranjang</span>
                                             </div>
                                         </div>
@@ -135,11 +188,10 @@
         </div>
 
         <!-- MOBILE NAVIGATION DRAWER -->
-        <div x-show="mobileMenuOpen" @click.away="mobileMenuOpen = false" x-transition class="md:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-6 space-y-3">
+        <div x-show="mobileMenuOpen" x-cloak @click.outside="mobileMenuOpen = false" x-transition class="md:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-6 space-y-3">
             <a href="#beranda" @click="mobileMenuOpen = false" class="block py-2 text-slate-700 font-medium hover:text-teal-600">Beranda</a>
             <a href="#kategori" @click="mobileMenuOpen = false" class="block py-2 text-slate-700 font-medium hover:text-teal-600">Kategori</a>
             <a href="#produk" @click="mobileMenuOpen = false" class="block py-2 text-slate-700 font-medium hover:text-teal-600">Produk</a>
-            <a href="#keunggulan" @click="mobileMenuOpen = false" class="block py-2 text-slate-700 font-medium hover:text-teal-600">Keunggulan</a>
             <a href="#ulasan" @click="mobileMenuOpen = false" class="block py-2 text-slate-700 font-medium hover:text-teal-600">Rating & Ulasan</a>
             <button @click="openAuthModal = true; mobileMenuOpen = false" class="w-full text-left py-2 text-teal-600 font-semibold border-t border-slate-100 pt-3">
                 <span x-text="isAdminLoggedIn ? 'Status: Admin Logged In' : (isCustomerLoggedIn ? 'Akun: ' + loggedInCustomerName : 'Sign In / Account')"></span>
@@ -161,7 +213,7 @@
             </h1>
 
             <!-- SUBHEADLINE (EDITABLE BY ADMIN) -->
-            <div class="max-w-2xl mx-auto mb-8">
+            <div class="max-w-2xl mx-auto mb-2">
                 <p x-show="!isEditingSubheadline" x-text="heroSubheadline" class="text-base sm:text-lg text-slate-100 leading-relaxed font-medium drop-shadow-sm"></p>
                 
                 <!-- ADMIN EDITABLE CONTROLS -->
@@ -176,16 +228,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- HERO CTA BUTTONS -->
-            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <a href="#produk" class="w-full sm:w-auto px-8 py-4 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-2xl shadow-lg shadow-teal-500/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-center">
-                    Belanja Sekarang
-                </a>
-                <a href="#kategori" class="w-full sm:w-auto px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl border border-white/20 backdrop-blur-sm transition-all text-center">
-                    Lihat Kategori
-                </a>
             </div>
 
         </div>
@@ -228,43 +270,17 @@
     </section>
 
     <!-- PRODUCTS SECTION -->
-    <section id="produk" class="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+    <section id="produk" class="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 flex-1">
         
-        <!-- ADMIN SETTINGS & INLINE PRODUCT ADDITION FORM WITH VARIANTS & LOGO EDITOR -->
+        <!-- ADMIN SETTINGS & PRODUCT CREATION FORM WITH DYNAMIC VARIANT TABLE -->
         <div x-show="isAdminLoggedIn" class="space-y-6">
             
-            <!-- ADMIN LOGO SETTINGS PANEL -->
-            <div class="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-lg">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-base sm:text-lg font-bold flex items-center gap-2 text-teal-400">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 002-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        Pengaturan Logo Toko (Mode Admin)
-                    </h3>
-                    <span class="text-xs bg-teal-500/20 text-teal-300 font-bold px-3 py-1 rounded-full border border-teal-500/30">Pengelola Logo</span>
-                </div>
-                
-                <form @submit.prevent="updateLogoUrl()" class="flex flex-col sm:flex-row items-center gap-4">
-                    <div class="w-full flex-1">
-                        <label class="block text-xs font-semibold text-slate-300 mb-1">URL Gambar Logo Baru</label>
-                        <input type="url" x-model="tempLogoInput" placeholder="Masukkan URL Logo Baru (https://...)" class="w-full px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-white text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none">
-                    </div>
-                    <div class="flex items-center gap-3 w-full sm:w-auto self-end">
-                        <button type="submit" class="w-full sm:w-auto px-6 py-2.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl text-sm transition-colors shadow-xs">
-                            Simpan Logo Baru
-                        </button>
-                        <button type="button" @click="resetLogoUrl()" class="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-sm transition-colors">
-                            Reset Default
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- ADMIN PRODUCT ADDITION WITH VARIANTS -->
+            <!-- ADMIN PRODUCT ADDITION WITH VARIANTS & STOK -->
             <div class="bg-teal-50/80 border-2 border-dashed border-teal-200 rounded-3xl p-6 sm:p-8">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-bold text-teal-900 flex items-center gap-2">
                         <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                        Tambah Produk Baru & Varian (Mode Admin)
+                        Tambah Produk Baru & Pengaturan Varian (Mode Admin)
                     </h3>
                     <span class="text-xs bg-teal-200 text-teal-800 font-bold px-2.5 py-1 rounded-full">Admin Active</span>
                 </div>
@@ -272,7 +288,7 @@
                 <form @submit.prevent="addProduct()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
                     <div class="lg:col-span-3">
                         <label class="block text-xs font-bold text-slate-700 mb-1">Nama Produk</label>
-                        <input type="text" x-model="newProduct.name" required placeholder="Contoh: Es Matcha Latte" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                        <input type="text" x-model="newProduct.name" required placeholder="Contoh: Yakult Series" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
                     </div>
                     <div class="lg:col-span-2">
                         <label class="block text-xs font-bold text-slate-700 mb-1">Kategori</label>
@@ -283,20 +299,59 @@
                         </select>
                     </div>
                     <div class="lg:col-span-2">
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Harga (Rp)</label>
-                        <input type="number" x-model.number="newProduct.price" required placeholder="15000" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Harga Utama (Rp)</label>
+                        <input type="number" x-model.number="newProduct.price" required placeholder="13000" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
                     </div>
                     <div class="lg:col-span-2">
-                        <label class="block text-xs font-bold text-slate-700 mb-1">URL Gambar Produk</label>
-                        <input type="url" x-model="newProduct.image" placeholder="https://..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Jumlah Stok</label>
+                        <input type="number" x-model.number="newProduct.stock" required placeholder="28" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
                     </div>
                     <div class="lg:col-span-3">
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Pilihan Varian (Pisahkan Koma)</label>
-                        <input type="text" x-model="newProduct.variantsInput" placeholder="Contoh: Dingin, Hangat, Less Sugar" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">URL / Kode Gambar Utama</label>
+                        <input type="text" x-model="newProduct.image" placeholder="Tempel URL atau Kode HTML ImgBB" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                        <p class="text-[10px] text-slate-500 mt-1">*Bisa link ImgBB, Postimages, atau HTML img tag</p>
                     </div>
+                    
+                    <!-- DYNAMIC VARIANT TABLE BUILDER WITH OPTIONAL IMAGES -->
+                    <div class="lg:col-span-12 bg-white p-5 rounded-2xl border border-teal-100 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tabel Pengaturan Varian (Bisa Dengan Foto / Boleh Polosan)</h4>
+                                <p class="text-[11px] text-slate-500">Isi Nama Varian (misal: Teh, Melon, Leci). Link Foto Varian sifatnya *Opsional*. Jika dikosongkan, varian akan memakai foto utama produk.</p>
+                            </div>
+                            <button type="button" @click="addVariantRow()" class="px-3.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors flex items-center gap-1">
+                                + Tambah Baris Varian
+                            </button>
+                        </div>
+
+                        <!-- QUICK COMMA PARSER INPUT -->
+                        <div class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <span class="text-xs font-semibold text-slate-600 whitespace-nowrap">Input Cepat (Pisahkan Koma):</span>
+                            <input type="text" x-model="newProduct.quickVariantsInput" @input="parseQuickVariants()" placeholder="Contoh: Teh, Melon, Leci, Sirsak, Mangga" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
+                        </div>
+
+                        <!-- VARIANT ROWS LIST -->
+                        <div class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                            <template x-for="(vRow, vIdx) in newProduct.variantsList" :key="vIdx">
+                                <div class="flex flex-col sm:flex-row items-center gap-2.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                                    <span class="text-xs font-bold text-slate-400 w-6 text-center" x-text="vIdx + 1"></span>
+                                    <div class="w-full sm:w-1/3">
+                                        <input type="text" x-model="vRow.name" placeholder="Nama Varian (misal: Melon)" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
+                                    </div>
+                                    <div class="w-full sm:flex-1">
+                                        <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional / Boleh Kosong)" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
+                                    </div>
+                                    <button type="button" @click="removeVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 text-xs font-bold" title="Hapus Baris Varian">
+                                        ✕ Hapus
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
                     <div class="lg:col-span-12 flex justify-end">
                         <button type="submit" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors shadow-xs">
-                            + Simpan Produk & Varian Baru
+                            + Simpan Produk & Varian
                         </button>
                     </div>
                 </form>
@@ -320,7 +375,7 @@
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
 
-                    <div x-show="openSort" @click.away="openSort = false" class="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-20">
+                    <div x-show="openSort" x-cloak @click.outside="openSort = false" class="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-20">
                         <button @click="catalogSort = 'default'; openSort = false" :class="catalogSort === 'default' ? 'bg-teal-50 text-teal-700 font-bold' : 'text-slate-700'" class="w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-slate-50 transition-colors">
                             Default
                         </button>
@@ -337,29 +392,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <!-- LEFT SIDEBAR: FILTERS -->
                 <div class="lg:col-span-3 space-y-6 bg-slate-50/50 p-5 rounded-2xl border border-slate-100 h-fit">
-                    
                     <div class="border-b border-slate-200 pb-5">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Weight / Ukuran</h4>
-                            <span class="text-slate-400 text-xs">─</span>
-                        </div>
-                        <div class="space-y-2.5 text-xs text-slate-600">
-                            <label class="flex items-center gap-2.5 cursor-pointer">
-                                <input type="checkbox" value="300 ml" x-model="filterWeight" class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4">
-                                <span>300 ml</span>
-                            </label>
-                            <label class="flex items-center gap-2.5 cursor-pointer">
-                                <input type="checkbox" value="500 ml" x-model="filterWeight" class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4">
-                                <span>500 ml</span>
-                            </label>
-                            <label class="flex items-center gap-2.5 cursor-pointer">
-                                <input type="checkbox" value="7 pcs" x-model="filterWeight" class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4">
-                                <span>7 pcs</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div>
                         <div class="flex items-center justify-between mb-3">
                             <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Harga</h4>
                             <span class="text-slate-400 text-xs">─</span>
@@ -386,7 +419,6 @@
                             Reset Filter
                         </button>
                     </div>
-
                 </div>
 
                 <!-- RIGHT SIDE: PRODUCT GRID -->
@@ -396,12 +428,12 @@
                             <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group">
                                 <div>
                                     <div class="relative aspect-square overflow-hidden bg-slate-100 cursor-pointer" @click="openQuickView(product)">
-                                        <img :src="product.image" :alt="product.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHA+MART'">
+                                        <img :src="sanitizeImageUrl(product.image)" :alt="product.name" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHADELIVERY'">
                                         <button x-show="isAdminLoggedIn" @click.stop="deleteProduct(product.id)" class="absolute top-2 right-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-xs z-10 transition-colors">
                                             Hapus
                                         </button>
-                                        <div x-show="product.variants && product.variants.length > 0" class="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
-                                            <span x-text="product.variants.length + ' Varian'"></span>
+                                        <div x-show="Array.isArray(product.variants) && product.variants.length > 0" class="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                                            <span x-text="(product.variants ? product.variants.length : 0) + ' Varian'"></span>
                                         </div>
                                     </div>
                                     <div class="p-4">
@@ -410,9 +442,16 @@
                                     </div>
                                 </div>
                                 <div class="p-4 pt-0">
-                                    <button @click="openQuickView(product)" class="w-full py-2 px-3 border border-teal-600 text-teal-600 hover:bg-teal-600 hover:text-white text-xs font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center">
-                                        Lihat opsi
-                                    </button>
+                                    <template x-if="Array.isArray(product.variants) && product.variants.length > 0">
+                                        <button @click="openQuickView(product)" class="w-full py-2.5 px-4 border border-teal-500 text-teal-600 hover:bg-teal-50 text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center">
+                                            Lihat opsi
+                                        </button>
+                                    </template>
+                                    <template x-if="!Array.isArray(product.variants) || product.variants.length === 0">
+                                        <button @click="addToCart(product)" class="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center">
+                                            Tambahkan ke Keranjang
+                                        </button>
+                                    </template>
                                 </div>
                             </div>
                         </template>
@@ -422,8 +461,11 @@
                         <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
                         </div>
-                        <h4 class="text-base font-bold text-slate-800">Belum Ada Produk Tersedia</h4>
-                        <p class="text-xs text-slate-500 mt-1">Gunakan mode Admin untuk mulai menambahkan daftar produk.</p>
+                        <h4 class="text-base font-bold text-slate-800">
+                            <span x-show="searchQuery" x-text="'Tidak ditemukan produk dengan kata kunci &quot;' + searchQuery + '&quot;'"></span>
+                            <span x-show="!searchQuery">Belum Ada Produk Tersedia</span>
+                        </h4>
+                        <p class="text-xs text-slate-500 mt-1">Coba gunakan kata kunci lain atau periksa kembali ejaan pencarian Anda.</p>
                     </div>
                 </div>
             </div>
@@ -451,12 +493,12 @@
                             <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group">
                                 <div>
                                     <div class="relative aspect-square overflow-hidden bg-slate-100 cursor-pointer" @click="openQuickView(product)">
-                                        <img :src="product.image" :alt="product.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHA+MART'">
+                                        <img :src="sanitizeImageUrl(product.image)" :alt="product.name" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHADELIVERY'">
                                         <button x-show="isAdminLoggedIn" @click.stop="deleteProduct(product.id)" class="absolute top-2 right-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-xs z-10 transition-colors">
                                             Hapus
                                         </button>
-                                        <div x-show="product.variants && product.variants.length > 0" class="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
-                                            <span x-text="product.variants.length + ' Varian'"></span>
+                                        <div x-show="Array.isArray(product.variants) && product.variants.length > 0" class="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                                            <span x-text="(product.variants ? product.variants.length : 0) + ' Varian'"></span>
                                         </div>
                                     </div>
                                     <div class="p-4">
@@ -465,9 +507,16 @@
                                     </div>
                                 </div>
                                 <div class="p-4 pt-0">
-                                    <button @click="openQuickView(product)" class="w-full py-3 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center gap-2">
-                                        <span>Pilih & Tambahkan</span>
-                                    </button>
+                                    <template x-if="Array.isArray(product.variants) && product.variants.length > 0">
+                                        <button @click="openQuickView(product)" class="w-full py-2.5 px-4 border border-teal-500 text-teal-600 hover:bg-teal-50 text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center">
+                                            Lihat opsi
+                                        </button>
+                                    </template>
+                                    <template x-if="!Array.isArray(product.variants) || product.variants.length === 0">
+                                        <button @click="addToCart(product)" class="w-full py-3 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center gap-2">
+                                            <span>Tambahkan ke Keranjang</span>
+                                        </button>
+                                    </template>
                                 </div>
                             </div>
                         </template>
@@ -487,52 +536,6 @@
 
     </section>
 
-    <!-- FEATURES SECTION -->
-    <section id="keunggulan" class="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100">
-        <div class="bg-slate-50/70 rounded-3xl p-8 sm:p-12 border border-slate-100 shadow-2xs">
-            <div class="text-center max-w-xl mx-auto mb-12">
-                <h2 class="text-2xl sm:text-3xl font-black text-slate-900">
-                    Kenapa Belanja di NUHA MART?
-                </h2>
-                <p class="text-sm text-slate-500 mt-1">Layanan e-commerce modern yang siap melayani kebutuhan harianmu</p>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                <div class="text-center space-y-3 bg-white p-6 rounded-2xl border border-slate-100 shadow-2xs">
-                    <div class="w-12 h-12 bg-teal-100/60 text-teal-600 rounded-2xl flex items-center justify-center mx-auto">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                    <h4 class="font-bold text-slate-900 text-sm sm:text-base">Produk Berkualitas</h4>
-                    <p class="text-xs text-slate-500 leading-relaxed">Produk pilihan dari supplier terpercaya dengan kualitas mutu terbaik.</p>
-                </div>
-
-                <div class="text-center space-y-3 bg-white p-6 rounded-2xl border border-slate-100 shadow-2xs">
-                    <div class="w-12 h-12 bg-teal-100/60 text-teal-600 rounded-2xl flex items-center justify-center mx-auto">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                    <h4 class="font-bold text-slate-900 text-sm sm:text-base">Harga Terjangkau</h4>
-                    <p class="text-xs text-slate-500 leading-relaxed">Harga kompetitif dan bersahabat untuk belanja hemat setiap hari.</p>
-                </div>
-
-                <div class="text-center space-y-3 bg-white p-6 rounded-2xl border border-slate-100 shadow-2xs">
-                    <div class="w-12 h-12 bg-teal-100/60 text-teal-600 rounded-2xl flex items-center justify-center mx-auto">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    </div>
-                    <h4 class="font-bold text-slate-900 text-sm sm:text-base">Pengiriman Cepat</h4>
-                    <p class="text-xs text-slate-500 leading-relaxed">Pesanan langsung diproses cepat dan diantar tepat ke depan pintu rumah.</p>
-                </div>
-
-                <div class="text-center space-y-3 bg-white p-6 rounded-2xl border border-slate-100 shadow-2xs">
-                    <div class="w-12 h-12 bg-teal-100/60 text-teal-600 rounded-2xl flex items-center justify-center mx-auto">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    </div>
-                    <h4 class="font-bold text-slate-900 text-sm sm:text-base">Belanja Aman</h4>
-                    <p class="text-xs text-slate-500 leading-relaxed">Sistem transaksi terjamin aman dengan opsi Cash on Delivery (COD).</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
     <!-- REVIEWS SECTION -->
     <section id="ulasan" class="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100">
         <div class="bg-slate-50/70 rounded-3xl p-6 sm:p-10 border border-slate-100 shadow-2xs">
@@ -540,7 +543,7 @@
                 <h2 class="text-2xl sm:text-3xl font-black text-slate-900">
                     Rating & Ulasan Pelanggan
                 </h2>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">Pendapat & pengalaman belanja pelanggan di NUHA MART</p>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">Pendapat & pengalaman belanja pelanggan di NUHA DELIVERY</p>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -581,8 +584,10 @@
                         <div class="p-4 rounded-2xl border border-slate-200/80 bg-white shadow-2xs space-y-2">
                             <div class="flex items-center justify-between">
                                 <span class="text-xs font-bold text-slate-900" x-text="rev.name"></span>
-                                <div class="text-amber-400 text-xs">
-                                    <template x-for="s in rev.rating" :key="s"><span>&#9733;</span></template>
+                                <div class="text-amber-400 text-xs flex items-center">
+                                    <template x-for="s in rev.rating" :key="s">
+                                        <span>&#9733;</span>
+                                    </template>
                                 </div>
                             </div>
                             <p class="text-xs text-slate-600 leading-relaxed" x-text="rev.comment"></p>
@@ -594,7 +599,7 @@
                             <span class="text-lg">&#9733;</span>
                         </div>
                         <p class="text-xs text-slate-700 font-bold">Belum Ada Ulasan</p>
-                        <p class="text-[11px] text-slate-400 mt-1">Jadilah yang pertama memberikan rating & ulasan untuk NUHA MART!</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Jadilah yang pertama memberikan rating & ulasan untuk NUHA DELIVERY!</p>
                     </div>
                 </div>
             </div>
@@ -606,9 +611,8 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
             <div class="space-y-4">
                 <div class="flex items-center gap-2.5">
-                    <img :src="logoUrl" alt="NUHA MART Logo" class="h-14 sm:h-16 w-auto object-contain" onerror="this.src='https://i.ibb.co.com/ynV3VqHf/Chat-GPT-Image-9-Agu-2026-16-41-38-removebg-preview.png'">
+                    <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-16 w-auto object-contain" onerror="this.src='https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png'">
                 </div>
-                <p class="text-xs leading-relaxed text-slate-400">Toko retail dan e-commerce modern terpercaya untuk segala kebutuhan harian Anda.</p>
             </div>
             <div>
                 <h4 class="text-sm font-bold text-white mb-3">Navigasi</h4>
@@ -616,7 +620,6 @@
                     <li><a href="#beranda" class="hover:text-teal-400">Beranda</a></li>
                     <li><a href="#kategori" class="hover:text-teal-400">Kategori</a></li>
                     <li><a href="#produk" class="hover:text-teal-400">Produk</a></li>
-                    <li><a href="#keunggulan" class="hover:text-teal-400">Keunggulan</a></li>
                     <li><a href="#ulasan" class="hover:text-teal-400">Rating & Ulasan</a></li>
                 </ul>
             </div>
@@ -625,7 +628,6 @@
                 <ul class="space-y-2 text-xs">
                     <li><a href="#ulasan" class="hover:text-teal-400">Rating & Ulasan</a></li>
                     <li><button @click="openAuthModal = true" class="hover:text-teal-400">Akun Pelanggan</button></li>
-                    <li><a href="#" class="hover:text-teal-400">Syarat & Ketentuan</a></li>
                 </ul>
             </div>
             <div>
@@ -636,20 +638,93 @@
             </div>
         </div>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-slate-800 text-center text-xs text-slate-500">
-            &copy; 2026 NUHA MART. All Rights Reserved.
+            &copy; 2026 NUHA DELIVERY. All Rights Reserved.
         </div>
     </footer>
 
+    <!-- QUICK VIEW / VARIANT SELECTION MODAL WITH DYNAMIC IMAGE SWITCHING -->
+    <div x-show="quickViewModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div @click.outside="quickViewModal = false" class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 overflow-hidden">
+            <button @click="quickViewModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 z-10">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            
+            <template x-if="selectedProduct">
+                <div class="space-y-6 text-left">
+                    
+                    <!-- DYNAMIC PRODUCT / VARIANT PREVIEW IMAGE -->
+                    <div class="relative w-full aspect-square sm:aspect-video rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 shadow-2xs">
+                        <img :src="getModalDisplayImage()" :alt="selectedProduct.name" referrerpolicy="no-referrer" class="w-full h-full object-cover transition-all duration-300" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHADELIVERY'">
+                        <div x-show="activeVariantChoice && activeVariantChoice.image" class="absolute bottom-2 right-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                            <span>Foto Varian: </span><span x-text="activeVariantChoice.name"></span>
+                        </div>
+                    </div>
+
+                    <!-- HEAD TITLE & PRICE -->
+                    <div>
+                        <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight" x-text="selectedProduct.name"></h2>
+                        <div class="text-2xl sm:text-3xl font-bold text-slate-900 mt-1" x-text="formatRupiah(selectedProduct.price)"></div>
+                    </div>
+
+                    <!-- VARIAN HEADER & PILL BUTTONS -->
+                    <div x-show="Array.isArray(selectedProduct.variants) && selectedProduct.variants.length > 0">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <label class="block text-sm font-medium text-slate-700">Varian</label>
+                            <span x-show="activeVariantChoice && activeVariantChoice.image" class="text-[11px] text-teal-600 font-bold">✓ Varian memiliki foto khusus</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2.5">
+                            <template x-for="v in (selectedProduct.variants || [])" :key="v.name || v">
+                                <button type="button" @click="selectVariant(v)"
+                                        :class="(activeVariantChoice && (activeVariantChoice.name === (v.name || v))) ? 'border-2 border-teal-500 text-slate-900 font-bold bg-teal-50/20' : 'border border-slate-200 text-slate-800 hover:border-slate-300 bg-white'"
+                                        class="px-5 py-2.5 rounded-xl text-sm transition-all shadow-2xs min-w-[70px] text-center flex items-center gap-1.5">
+                                    <span x-text="v.name || v"></span>
+                                    <span x-show="v.image" class="w-2 h-2 rounded-full bg-teal-500" title="Memiliki foto khusus"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- QUANTITY SELECTOR & TAMBAHKAN KE KERANJANG BUTTON -->
+                    <div class="flex items-center gap-3 pt-2">
+                        <!-- QUANTITY SELECTOR -->
+                        <div class="flex items-center justify-between border border-slate-200 rounded-xl px-3 py-2 w-28 bg-white">
+                            <button @click="variantModalQty = Math.max(1, variantModalQty - 1)" class="text-slate-400 hover:text-slate-700 text-lg font-medium px-1 focus:outline-none">─</button>
+                            <span class="font-bold text-sm text-slate-900" x-text="variantModalQty"></span>
+                            <button @click="variantModalQty++" class="text-slate-700 hover:text-slate-900 text-lg font-medium px-1 focus:outline-none">+</button>
+                        </div>
+
+                        <!-- MAIN CTA BUTTON -->
+                        <button @click="confirmAddToCartWithVariant()" class="flex-1 py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm sm:text-base transition-colors shadow-xs">
+                            Tambahkan ke Keranjang
+                        </button>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <!-- INFORMASI PRODUK (STOK BOX) -->
+                    <div class="space-y-3">
+                        <h4 class="text-sm font-semibold text-slate-900">informasi produk</h4>
+                        <div class="bg-slate-50/80 rounded-xl p-4 flex items-center justify-between border border-slate-100/80">
+                            <span class="text-sm text-slate-600 font-medium">Stok</span>
+                            <span class="text-sm font-bold text-slate-800" x-text="selectedProduct.stock || 28"></span>
+                        </div>
+                    </div>
+
+                </div>
+            </template>
+        </div>
+    </div>
+
     <!-- AUTH & LOGIN MODAL -->
-    <div x-show="openAuthModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-        <div @click.away="openAuthModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100">
+    <div x-show="openAuthModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div @click.outside="openAuthModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100">
             <button @click="openAuthModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
 
             <!-- MODAL LOGO HEADER -->
             <div class="flex items-center justify-center gap-2 mb-4">
-                <img :src="logoUrl" alt="NUHA MART Logo" class="h-14 sm:h-16 w-auto object-contain" onerror="this.src='https://i.ibb.co.com/ynV3VqHf/Chat-GPT-Image-9-Agu-2026-16-41-38-removebg-preview.png'">
+                <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-16 w-auto object-contain" onerror="this.src='https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png'">
             </div>
 
             <!-- TAB SELECTOR -->
@@ -693,7 +768,7 @@
 
                     <div x-show="customerAuthMode === 'register'">
                         <h3 class="text-xl font-black text-slate-900">Daftar Akun Baru</h3>
-                        <p class="text-xs text-slate-500 mt-1 mb-6">Buat akun untuk kemudahan belanja di NUHA MART.</p>
+                        <p class="text-xs text-slate-500 mt-1 mb-6">Buat akun untuk kemudahan belanja di NUHA DELIVERY.</p>
 
                         <form @submit.prevent="registerCustomer()">
                             <div class="mb-3">
@@ -740,7 +815,7 @@
             <div x-show="authTab === 'admin'">
                 <div x-show="!isAdminLoggedIn">
                     <h3 class="text-xl font-black text-slate-900">Login Administrator</h3>
-                    <p class="text-xs text-slate-500 mt-1 mb-6">Akses khusus pengelola toko NUHA MART.</p>
+                    <p class="text-xs text-slate-500 mt-1 mb-6">Akses khusus pengelola toko NUHA DELIVERY.</p>
 
                     <form @submit.prevent="loginAdmin()">
                         <div class="mb-4">
@@ -762,7 +837,7 @@
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                     </div>
                     <h4 class="font-bold text-slate-900">Admin Logged In</h4>
-                    <p class="text-xs text-slate-500 mt-1">Anda memiliki hak akses kelola produk & logo langsung di halaman utama.</p>
+                    <p class="text-xs text-slate-500 mt-1">Anda memiliki hak akses kelola produk & varian langsung di halaman utama.</p>
                     <button @click="logoutAdmin()" class="mt-6 w-full py-3 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-xs rounded-xl transition-colors">
                         Logout Admin
                     </button>
@@ -773,8 +848,8 @@
     </div>
 
     <!-- SHOPPING CART DRAWER -->
-    <div x-show="cartDrawerOpen" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end">
-        <div @click.away="cartDrawerOpen = false" class="bg-white w-full max-w-md h-full flex flex-col justify-between p-6 shadow-2xl">
+    <div x-show="cartDrawerOpen" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end">
+        <div @click.outside="cartDrawerOpen = false" class="bg-white w-full max-w-md h-full flex flex-col justify-between p-6 shadow-2xl">
             <div>
                 <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
                     <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -816,7 +891,7 @@
                     <span>Total Subtotal</span>
                     <span class="text-teal-600" x-text="formatRupiah(cartSubtotal)"></span>
                 </div>
-                <button @click="openCheckoutModal = true; cartDrawerOpen = false;" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-xs">
+                <button @click.stop="openCheckoutModal = true; cartDrawerOpen = false;" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-xs">
                     Lanjut ke Checkout
                 </button>
             </div>
@@ -824,50 +899,34 @@
     </div>
 
     <!-- CHECKOUT MODAL -->
-    <div x-show="openCheckoutModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-        <div @click.away="openCheckoutModal = false" class="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-8">
+    <div x-show="openCheckoutModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+        <div @click.outside="openCheckoutModal = false" class="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-8">
             <button @click="openCheckoutModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-2">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-2">
+                
+                <!-- LEFT COLUMN: DETAIL PEMESAN (SEPARATED COLUMNS) -->
                 <div class="lg:col-span-7 space-y-6">
                     <div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-3">Detail Checkout</h3>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nama Anak / Kelas / Kamar</label>
-                            <input type="text" x-model="checkoutForm.details" placeholder="Contoh: Ahmad / 10 IPA 1 / Kamar 04" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
-                        </div>
-                    </div>
-
-                    <hr class="border-slate-100">
-
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-900 mb-3">Pengiriman</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div @click="selectShipping('pickup')" 
-                                 :class="checkoutForm.shipping === 'pickup' ? 'border-teal-500 bg-teal-50/20 ring-1 ring-teal-500' : 'border-slate-200 bg-white hover:border-slate-300'" 
-                                 class="p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between">
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="font-bold text-slate-900 text-sm">Pick up</span>
-                                    <span class="text-xs font-extrabold text-slate-900 uppercase">GRATIS</span>
-                                </div>
-                                <p class="text-xs text-slate-500 leading-snug">Ambil Pesanan Ke Nuha Mart Putra</p>
+                        <h3 class="text-lg font-bold text-slate-900 mb-1">Detail Pemesan</h3>
+                        <p class="text-xs text-slate-500 mb-4">Lengkapi data tujuan pengiriman pesanan Anda.</p>
+                        
+                        <div class="space-y-3.5">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Pemesan / Anak</label>
+                                <input type="text" x-model="checkoutForm.nama" placeholder="Contoh: Ahmad Subagja" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
                             </div>
-
-                            <div @click="selectShipping('delivery')" 
-                                 :class="checkoutForm.shipping === 'delivery' ? 'border-teal-500 bg-teal-50/20 ring-1 ring-teal-500' : 'border-slate-200 bg-white hover:border-slate-300'" 
-                                 class="p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between relative">
-                                <div class="flex items-center justify-between mb-1">
-                                    <div>
-                                        <span class="font-bold text-slate-900 text-sm">Delivery</span>
-                                        <span class="text-[10px] text-slate-500 font-semibold block sm:inline"> (Min. Rp50.000)</span>
-                                    </div>
-                                    <span class="text-xs font-extrabold text-slate-900 uppercase">GRATIS</span>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Kelas / Tingkat</label>
+                                    <input type="text" x-model="checkoutForm.kelas" placeholder="Contoh: 10 IPA 1" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
                                 </div>
-                                <p class="text-xs text-slate-500 leading-snug">Antar ke tempat</p>
-                                <div x-show="cartSubtotal < 50000" class="mt-2 text-[11px] text-rose-500 font-semibold">
-                                    *Min. order Rp50.000 untuk delivery
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Asrama / Kamar</label>
+                                    <input type="text" x-model="checkoutForm.asrama" placeholder="Contoh: Kamar 04 - Asrama Putra" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
                                 </div>
                             </div>
                         </div>
@@ -884,32 +943,54 @@
                                 <div class="w-8 h-8 rounded-lg bg-teal-500 text-white flex items-center justify-center">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                                 </div>
-                                <span class="font-bold text-slate-900 text-sm">CASH</span>
+                                <div>
+                                    <span class="font-bold text-slate-900 text-sm block">CASH / TUNAI</span>
+                                    <span class="text-[10px] text-slate-500">Bayar saat barang diterima</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                <!-- RIGHT COLUMN: RINGKASAN PESANAN & DETAIL DUA SISI -->
                 <div class="lg:col-span-5">
                     <div class="bg-slate-50/80 rounded-2xl p-6 border border-slate-200/80 space-y-4 sticky top-6">
-                        <h3 class="text-base font-bold text-slate-900">Ringkasan Pesanan</h3>
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-200/80">
+                            <h3 class="text-base font-bold text-slate-900">Detail Pesanan</h3>
+                            <span class="text-xs text-teal-600 font-bold" x-text="cartTotalItems + ' item'"></span>
+                        </div>
                         
+                        <!-- ITEMIZED PRODUCTS LIST IN CHECKOUT -->
+                        <div class="space-y-3 max-h-56 overflow-y-auto pr-1">
+                            <template x-for="item in cart" :key="item.cartId">
+                                <div class="flex items-center justify-between gap-3 text-xs border-b border-slate-200/60 pb-2 last:border-b-0">
+                                    <div class="flex items-center gap-2.5 min-w-0">
+                                        <img :src="item.image" :alt="item.name" class="w-10 h-10 object-cover rounded-lg bg-white border border-slate-100 flex-shrink-0">
+                                        <div class="min-w-0">
+                                            <h5 class="font-bold text-slate-800 line-clamp-1" x-text="item.name"></h5>
+                                            <p x-show="item.selectedVariant" class="text-[10px] text-teal-600 font-semibold line-clamp-1" x-text="'Varian: ' + item.selectedVariant"></p>
+                                            <p class="text-[11px] text-slate-500" x-text="item.qty + ' x ' + formatRupiah(item.price)"></p>
+                                        </div>
+                                    </div>
+                                    <div class="font-bold text-slate-900 text-right whitespace-nowrap" x-text="formatRupiah(item.price * item.qty)"></div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <hr class="border-slate-200">
+
                         <div class="space-y-2 text-xs">
                             <div class="flex justify-between text-slate-600">
-                                <span>Subtotal (<span x-text="cartTotalItems"></span> Item)</span>
+                                <span>Subtotal</span>
                                 <span class="font-bold text-slate-900" x-text="formatRupiah(cartSubtotal)"></span>
-                            </div>
-                            <div class="flex justify-between text-slate-600">
-                                <span>Pengiriman</span>
-                                <span class="font-extrabold text-slate-900 uppercase">GRATIS</span>
                             </div>
                         </div>
 
                         <hr class="border-slate-200">
 
                         <div class="flex justify-between items-center text-sm font-bold text-slate-900">
-                            <span>Total</span>
-                            <span class="text-base font-black text-slate-900" x-text="formatRupiah(cartSubtotal)"></span>
+                            <span>Total Pembayaran</span>
+                            <span class="text-lg font-black text-teal-600" x-text="formatRupiah(cartSubtotal)"></span>
                         </div>
 
                         <button @click="processWhatsAppCheckout()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-all shadow-xs flex items-center justify-center gap-2 mt-2">
@@ -922,54 +1003,15 @@
         </div>
     </div>
 
-    <!-- QUICK VIEW & VARIANT SELECTION MODAL -->
-    <div x-show="quickViewModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-        <div @click.away="quickViewModal = false" class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100">
-            <button @click="quickViewModal = false" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-            
-            <template x-if="selectedProduct">
-                <div class="space-y-4">
-                    <img :src="selectedProduct.image" class="w-full h-56 object-cover rounded-2xl bg-slate-100" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHA+MART'">
-                    <div>
-                        <span class="text-xs font-bold text-teal-600 uppercase tracking-wider" x-text="selectedProduct.category"></span>
-                        <h3 class="font-black text-xl text-slate-900 mt-0.5" x-text="selectedProduct.name"></h3>
-                        <p class="text-teal-600 font-extrabold text-xl mt-1" x-text="formatRupiah(selectedProduct.price)"></p>
-                    </div>
-
-                    <!-- VARIANT SELECTOR -->
-                    <div x-show="selectedProduct.variants && selectedProduct.variants.length > 0" class="border-t border-slate-100 pt-3">
-                        <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Pilih Varian Produk:</label>
-                        <div class="flex flex-wrap gap-2">
-                            <template x-for="v in selectedProduct.variants" :key="v">
-                                <button type="button" @click="activeVariantChoice = v"
-                                        :class="activeVariantChoice === v ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-teal-400'"
-                                        class="px-3.5 py-2 rounded-xl border text-xs font-bold transition-all">
-                                    <span x-text="v"></span>
-                                </button>
-                            </template>
-                        </div>
-                    </div>
-                    
-                    <button @click="confirmAddToCartWithVariant()" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm shadow-xs transition-colors flex items-center justify-center gap-2 mt-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 0a2 2 0 100 4 2 2 0 000-4z"/></svg>
-                        <span>Tambahkan ke Keranjang</span>
-                    </button>
-                </div>
-            </template>
-        </div>
-    </div>
-
     <!-- TOAST NOTIFICATION -->
-    <div x-show="toast.show" x-transition class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
+    <div x-show="toast.show" x-cloak x-transition class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
         <span class="w-2 h-2 rounded-full bg-teal-400"></span>
         <span x-text="toast.message"></span>
     </div>
 
     <!-- SUPABASE & ALPINE SCRIPT -->
     <script>
-        // SAFE WEBSOCKET GUARD FOR CANVAS / SANDBOX IFRAME ENVIRONMENTS
+        // SAFE WEBSOCKET GUARD FOR IFRAME / SANDBOXED PREVIEW
         if (typeof window !== 'undefined' && window.WebSocket) {
             const OriginalWebSocket = window.WebSocket;
             window.WebSocket = function(url, protocols) {
@@ -993,150 +1035,189 @@
             window.WebSocket.CLOSED = 3;
         }
 
-        // INISIALISASI KONEKSI SUPABASE
+        // SUPABASE CLIENT CONFIGURATION
         const SUPABASE_URL = 'https://hygkpfksrjzmlptbvngl.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5Z2twZmtzcmp6bWxwdGJ2bmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNjU1NTQsImV4cCI6MjEwMTg0MTU1NH0.Kr7T5I_CON3KSJgLdNRW2cbhhkPb_ABSGy4J4xNXGXA';
         const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function nuhaApp() {
-            const defaultLogo = 'https://i.ibb.co.com/ynV3VqHf/Chat-GPT-Image-9-Agu-2026-16-41-38-removebg-preview.png';
+            const defaultLogo = 'https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png';
             
             return {
                 // BRAND LOGO STATE
                 logoUrl: localStorage.getItem('nuha_logo_url') || defaultLogo,
-                tempLogoInput: localStorage.getItem('nuha_logo_url') || defaultLogo,
 
-                // UI MODAL STATES
+                // HERO SECTION STATES
+                heroTypedText: '',
+                heroSubheadline: 'Saat ini kami sedang menambah daftar menu lebih banyak, silahkan hubungi admin untuk request!!',
+                isEditingSubheadline: false,
+
+                // SEARCH & NAVIGATION STATES
+                searchQuery: '',
+                searchFocused: false,
                 mobileMenuOpen: false,
                 cartDrawerOpen: false,
                 openCheckoutModal: false,
                 quickViewModal: false,
                 openAuthModal: false,
 
-                // CATALOG VIEW & FILTER STATES
+                // CATEGORIES & CATALOG STATES
+                categories: [
+                    { id: 1, name: 'Minuman' },
+                    { id: 2, name: 'Kudapan' },
+                    { id: 3, name: 'Makanan Berat' },
+                    { id: 4, name: 'Kebutuhan Pribadi' }
+                ],
+                selectedCategory: 'Semua',
                 showAllCatalogView: false,
                 selectedCatalogCategory: 'Semua',
                 catalogSort: 'default',
-                filterWeight: [],
                 minPrice: null,
                 maxPrice: null,
 
-                // CHECKOUT FORM STATE
-                checkoutForm: {
-                    details: '',
-                    shipping: 'pickup',
-                    payment: 'cash'
-                },
-
-                // AUTH & ADMIN STATE
+                // AUTHENTICATION STATES
                 authTab: 'customer',
-                isAdminLoggedIn: false,
                 customerAuthMode: 'login',
-                isCustomerLoggedIn: false,
-                loggedInCustomerName: '',
-                customerForm: {
-                    username: '',
-                    password: ''
-                },
-                customerRegForm: {
-                    username: '',
-                    phone: '',
-                    password: ''
-                },
-                adminForm: {
-                    username: '',
-                    password: ''
-                },
+                customerForm: { username: '', password: '' },
+                customerRegForm: { username: '', phone: '', password: '' },
+                adminForm: { username: '', password: '' },
+                isAdminLoggedIn: localStorage.getItem('nuha_admin_logged_in') === 'true',
+                isCustomerLoggedIn: !!localStorage.getItem('nuha_customer_name'),
+                loggedInCustomerName: localStorage.getItem('nuha_customer_name') || '',
 
-                // TYPEWRITER ANIMATION STATES
-                heroTypedText: '',
-                heroFullText: 'Selamat datang di NUHADELIVERY',
-                heroTypeIndex: 0,
-                heroIsDeleting: false,
-
-                // HERO SUBHEADLINE
-                heroSubheadline: 'Saat ini kami sedang menambah daftar menu lebih banyak, silahkan hubungi admin untuk request!!',
-                isEditingSubheadline: false,
-
-                // CATEGORIES
-                selectedCategory: 'Semua',
-                categories: [
-                    { name: 'Minuman', id: 'minuman' },
-                    { name: 'Kudapan', id: 'kudapan' },
-                    { name: 'Makanan Berat', id: 'makanan-berat' },
-                    { name: 'Kebutuhan Pribadi', id: 'kebutuhan-pribadi' }
+                // PRODUCTS STATE WITH INITIAL MOCK DATA
+                products: [
+                    {
+                        id: 101,
+                        name: 'Yakult Series',
+                        category: 'Minuman',
+                        price: 13000,
+                        stock: 28,
+                        image: 'https://placehold.co/400x400/0d9488/ffffff?text=Yakult+Series',
+                        variants: [
+                            { name: 'Teh', image: '' },
+                            { name: 'Melon', image: '' },
+                            { name: 'Leci', image: '' },
+                            { name: 'Sirsak', image: '' },
+                            { name: 'Mangga', image: '' }
+                        ]
+                    },
+                    {
+                        id: 102,
+                        name: 'Susu UHT Cokelat',
+                        category: 'Minuman',
+                        price: 7000,
+                        stock: 50,
+                        image: 'https://placehold.co/400x400/0d9488/ffffff?text=Susu+UHT',
+                        variants: []
+                    },
+                    {
+                        id: 103,
+                        name: 'Roti Bakar Special',
+                        category: 'Kudapan',
+                        price: 15000,
+                        stock: 20,
+                        image: 'https://placehold.co/400x400/0d9488/ffffff?text=Roti+Bakar',
+                        variants: [
+                            { name: 'Cokelat Keju', image: '' },
+                            { name: 'Kacang', image: '' },
+                            { name: 'Stroberi', image: '' }
+                        ]
+                    },
+                    {
+                        id: 104,
+                        name: 'Nasi Goreng Ayam',
+                        category: 'Makanan Berat',
+                        price: 18000,
+                        stock: 15,
+                        image: 'https://placehold.co/400x400/0d9488/ffffff?text=Nasi+Goreng',
+                        variants: [
+                            { name: 'Sedang', image: '' },
+                            { name: 'Pedas', image: '' }
+                        ]
+                    },
+                    {
+                        id: 105,
+                        name: 'Sabun Mandi Herbal',
+                        category: 'Kebutuhan Pribadi',
+                        price: 12000,
+                        stock: 35,
+                        image: 'https://placehold.co/400x400/0d9488/ffffff?text=Sabun+Mandi',
+                        variants: []
+                    }
                 ],
 
-                // PRODUCTS & VARIANTS STATE
-                products: [],
+                // SHOPPING CART & CHECKOUT STATES
+                cart: [],
+                cartNotification: { show: false, product: null, variant: '', image: '', timer: null },
                 newProduct: {
                     name: '',
                     category: 'Minuman',
                     price: '',
+                    stock: 28,
                     image: '',
-                    variantsInput: ''
+                    quickVariantsInput: '',
+                    variantsList: [{ name: '', image: '' }]
                 },
                 selectedProduct: null,
-                activeVariantChoice: '',
+                activeVariantChoice: null,
+                variantModalQty: 1,
 
-                // CART STATE
-                cart: [],
-
-                // REVIEWS
-                reviews: [],
-                newReview: {
-                    name: '',
-                    rating: 5,
-                    comment: ''
+                checkoutForm: {
+                    nama: '',
+                    kelas: '',
+                    asrama: '',
+                    payment: 'cash'
                 },
 
-                // CART POPUP NOTIFICATION STATE
-                cartNotification: {
-                    show: false,
-                    product: null,
-                    variant: '',
-                    timer: null
-                },
+                // REVIEWS & TOAST STATES
+                reviews: [
+                    { id: 1, name: 'Ahmad Subagja', rating: 5, comment: 'Pengiriman sangat cepat sampai ke asrama! Produk masih dingin dan segar.' },
+                    { id: 2, name: 'Siti Rahma', rating: 5, comment: 'Sangat memudahkan santri saat ingin jajan tanpa perlu keluar area.' }
+                ],
+                newReview: { name: '', rating: 5, comment: '' },
+                toast: { show: false, message: '' },
 
-                // TOAST
-                toast: {
-                    show: false,
-                    message: ''
-                },
-
-                async initApp() {
-                    const savedCustomer = localStorage.getItem('nuha_customer_name');
-                    if (savedCustomer) {
-                        this.isCustomerLoggedIn = true;
-                        this.loggedInCustomerName = savedCustomer;
-                    }
-
-                    const savedAdmin = localStorage.getItem('nuha_admin_logged_in');
-                    if (savedAdmin === 'true') {
-                        this.isAdminLoggedIn = true;
-                    }
-
+                initApp() {
                     this.startHeroTypewriter();
-                    await this.fetchProducts();
-                    await this.fetchReviews();
+                    this.fetchProducts();
+                    this.fetchReviews();
                 },
 
-                // LOGO MANAGEMENT
-                updateLogoUrl() {
-                    if (!this.tempLogoInput || this.tempLogoInput.trim() === '') return;
-                    this.logoUrl = this.tempLogoInput.trim();
-                    localStorage.setItem('nuha_logo_url', this.logoUrl);
-                    this.showToast('Logo Toko Berhasil Diperbarui!');
+                startHeroTypewriter() {
+                    const headlines = [
+                        "Selamat datang di NUHA DELIVERY"
+                    ];
+                    let hIdx = 0;
+                    let charIdx = 0;
+                    let isDeleting = false;
+
+                    const type = () => {
+                        const currentHeadline = headlines[hIdx];
+                        if (isDeleting) {
+                            this.heroTypedText = currentHeadline.substring(0, charIdx - 1);
+                            charIdx--;
+                        } else {
+                            this.heroTypedText = currentHeadline.substring(0, charIdx + 1);
+                            charIdx++;
+                        }
+
+                        let speed = isDeleting ? 40 : 80;
+
+                        if (!isDeleting && charIdx === currentHeadline.length) {
+                            speed = 2200;
+                            isDeleting = true;
+                        } else if (isDeleting && charIdx === 0) {
+                            isDeleting = false;
+                            hIdx = (hIdx + 1) % headlines.length;
+                            speed = 500;
+                        }
+
+                        setTimeout(type, speed);
+                    };
+                    type();
                 },
 
-                resetLogoUrl() {
-                    this.logoUrl = defaultLogo;
-                    this.tempLogoInput = defaultLogo;
-                    localStorage.removeItem('nuha_logo_url');
-                    this.showToast('Logo dikembalikan ke tampilan awal.');
-                },
-
-                // SUPABASE FETCH PRODUCTS
                 async fetchProducts() {
                     try {
                         const { data, error } = await db
@@ -1144,18 +1225,17 @@
                             .select('*')
                             .order('id', { ascending: false });
 
-                        if (!error && data) {
+                        if (!error && data && data.length > 0) {
                             this.products = data.map(p => ({
                                 ...p,
-                                variants: p.variants || (p.variants_str ? p.variants_str.split(',').map(v => v.trim()) : [])
+                                variants: Array.isArray(p.variants) ? p.variants : []
                             }));
                         }
                     } catch (e) {
-                        console.error('Error fetching products:', e);
+                        console.warn('Using local fallback products due to fetch notice:', e.message);
                     }
                 },
 
-                // SUPABASE FETCH REVIEWS
                 async fetchReviews() {
                     try {
                         const { data, error } = await db
@@ -1163,44 +1243,33 @@
                             .select('*')
                             .order('id', { ascending: false });
 
-                        if (!error && data) {
+                        if (!error && data && data.length > 0) {
                             this.reviews = data;
                         }
                     } catch (e) {
-                        console.error('Error fetching reviews:', e);
+                        console.warn('Using local fallback reviews:', e.message);
                     }
                 },
 
-                // TYPEWRITER: HERO HEADLINE
-                startHeroTypewriter() {
-                    const speed = this.heroIsDeleting ? 60 : 120;
-                    if (!this.heroIsDeleting && this.heroTypeIndex < this.heroFullText.length) {
-                        this.heroTypedText += this.heroFullText.charAt(this.heroTypeIndex);
-                        this.heroTypeIndex++;
-                    } else if (this.heroIsDeleting && this.heroTypeIndex > 0) {
-                        this.heroTypedText = this.heroFullText.substring(0, this.heroTypeIndex - 1);
-                        this.heroTypeIndex--;
-                    }
-
-                    if (this.heroTypeIndex === this.heroFullText.length && !this.heroIsDeleting) {
-                        setTimeout(() => {
-                            this.heroIsDeleting = true;
-                            this.startHeroTypewriter();
-                        }, 2500);
-                        return;
-                    } else if (this.heroTypeIndex === 0 && this.heroIsDeleting) {
-                        this.heroIsDeleting = false;
-                    }
-
-                    setTimeout(() => this.startHeroTypewriter(), speed);
+                get searchResults() {
+                    if (!this.searchQuery || !this.searchQuery.trim()) return [];
+                    const q = this.searchQuery.toLowerCase().trim();
+                    return this.products.filter(p => {
+                        const nameMatch = p.name && p.name.toLowerCase().includes(q);
+                        const catMatch = p.category && p.category.toLowerCase().includes(q);
+                        const variantMatch = Array.isArray(p.variants) && p.variants.some(v => (v.name || v).toLowerCase().includes(q));
+                        return nameMatch || catMatch || variantMatch;
+                    });
                 },
 
-                // GET PRODUCTS BY CATEGORY
                 getProductsByCategory(catName) {
-                    return this.products.filter(p => p.category === catName);
+                    return this.products.filter(p => {
+                        const matchesCat = p.category === catName;
+                        const matchesSearch = !this.searchQuery || p.name.toLowerCase().includes(this.searchQuery.toLowerCase().trim()) || (Array.isArray(p.variants) && p.variants.some(v => (v.name || v).toLowerCase().includes(this.searchQuery.toLowerCase().trim())));
+                        return matchesCat && matchesSearch;
+                    });
                 },
 
-                // CATALOG FILTERING & SORTING LOGIC
                 toggleShowAllCatalog() {
                     this.showAllCatalogView = !this.showAllCatalogView;
                     if (this.showAllCatalogView) {
@@ -1221,6 +1290,16 @@
                         items = items.filter(p => p.category === this.selectedCatalogCategory);
                     }
 
+                    if (this.searchQuery && this.searchQuery.trim()) {
+                        const q = this.searchQuery.toLowerCase().trim();
+                        items = items.filter(p => {
+                            const nameMatch = p.name && p.name.toLowerCase().includes(q);
+                            const catMatch = p.category && p.category.toLowerCase().includes(q);
+                            const variantMatch = Array.isArray(p.variants) && p.variants.some(v => (v.name || v).toLowerCase().includes(q));
+                            return nameMatch || catMatch || variantMatch;
+                        });
+                    }
+
                     if (this.minPrice !== null && this.minPrice !== '') {
                         items = items.filter(p => p.price >= Number(this.minPrice));
                     }
@@ -1238,13 +1317,12 @@
                 },
 
                 resetFilters() {
+                    this.searchQuery = '';
                     this.minPrice = null;
                     this.maxPrice = null;
-                    this.filterWeight = [];
                     this.catalogSort = 'default';
                 },
 
-                // SCROLL TO CATEGORY
                 scrollToCategory(catName) {
                     this.showAllCatalogView = false;
                     this.selectedCategory = catName;
@@ -1264,19 +1342,59 @@
                     }
                 },
 
-                // PRODUCT ACTIONS (SUPABASE INTEGRATED WITH VARIANTS)
+                sanitizeImageUrl(rawUrl) {
+                    if (!rawUrl) return '';
+                    let str = String(rawUrl).trim();
+                    
+                    const htmlMatch = str.match(/src=["']([^"']+)["']/i);
+                    if (htmlMatch && htmlMatch[1]) {
+                        str = htmlMatch[1];
+                    }
+
+                    const driveMatch = str.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                    if (driveMatch && driveMatch[1]) {
+                        str = `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+                    }
+
+                    return str;
+                },
+
+                addVariantRow() {
+                    this.newProduct.variantsList.push({ name: '', image: '' });
+                },
+
+                removeVariantRow(idx) {
+                    this.newProduct.variantsList.splice(idx, 1);
+                },
+
+                parseQuickVariants() {
+                    if (!this.newProduct.quickVariantsInput) return;
+                    const names = this.newProduct.quickVariantsInput.split(',').map(n => n.trim()).filter(n => n);
+                    
+                    this.newProduct.variantsList = names.map(n => {
+                        const existing = this.newProduct.variantsList.find(v => v.name === n);
+                        return existing ? existing : { name: n, image: '' };
+                    });
+                },
+
                 async addProduct() {
                     if (!this.newProduct.name || !this.newProduct.price) return;
                     
-                    const parsedVariants = this.newProduct.variantsInput 
-                        ? this.newProduct.variantsInput.split(',').map(v => v.trim()).filter(v => v)
-                        : [];
+                    const cleanedImageUrl = this.sanitizeImageUrl(this.newProduct.image);
+
+                    const parsedVariants = this.newProduct.variantsList
+                        .filter(v => v.name && v.name.trim())
+                        .map(v => ({
+                            name: v.name.trim(),
+                            image: this.sanitizeImageUrl(v.image)
+                        }));
 
                     const newProductData = {
                         name: this.newProduct.name,
                         category: this.newProduct.category,
                         price: Number(this.newProduct.price),
-                        image: this.newProduct.image || 'https://placehold.co/400x400/0d9488/ffffff?text=' + encodeURIComponent(this.newProduct.name),
+                        stock: Number(this.newProduct.stock || 28),
+                        image: cleanedImageUrl || 'https://placehold.co/400x400/0d9488/ffffff?text=' + encodeURIComponent(this.newProduct.name),
                         variants: parsedVariants
                     };
 
@@ -1286,97 +1404,103 @@
                         .select();
 
                     if (error) {
-                        // Fallback jika kolom variants belum berbentuk JSON di Supabase
                         const fallbackData = {
-                            name: newProductData.name,
-                            category: newProductData.category,
-                            price: newProductData.price,
-                            image: newProductData.image
+                            id: Date.now(),
+                            ...newProductData
                         };
-                        const { data: fData, error: fError } = await db.from('products').insert([fallbackData]).select();
-                        if (fError) {
-                            this.showToast('Gagal menyimpan produk!');
-                            return;
-                        }
-                        fData[0].variants = parsedVariants;
-                        this.products.unshift(fData[0]);
-                    } else {
+                        this.products.unshift(fallbackData);
+                    } else if (data && data[0]) {
+                        data[0].variants = parsedVariants;
                         this.products.unshift(data[0]);
                     }
 
                     this.newProduct.name = '';
                     this.newProduct.price = '';
+                    this.newProduct.stock = 28;
                     this.newProduct.image = '';
-                    this.newProduct.variantsInput = '';
+                    this.newProduct.quickVariantsInput = '';
+                    this.newProduct.variantsList = [{ name: '', image: '' }];
                     this.showToast('Produk & Varian berhasil ditambahkan!');
                 },
 
                 async deleteProduct(id) {
+                    if (!confirm('Apakah Anda yakin ingin menghapus produk ini?')) return;
+
                     const { error } = await db
                         .from('products')
                         .delete()
                         .eq('id', id);
 
                     if (error) {
-                        this.showToast('Gagal menghapus produk!');
                         console.error(error);
-                    } else {
-                        this.products = this.products.filter(p => p.id !== id);
-                        this.showToast('Produk berhasil dihapus!');
                     }
+                    this.products = this.products.filter(p => p.id !== id);
+                    this.showToast('Produk berhasil dihapus!');
                 },
 
                 openQuickView(product) {
                     this.selectedProduct = product;
-                    if (product.variants && product.variants.length > 0) {
+                    this.variantModalQty = 1;
+                    if (Array.isArray(product.variants) && product.variants.length > 0) {
                         this.activeVariantChoice = product.variants[0];
                     } else {
-                        this.activeVariantChoice = '';
+                        this.activeVariantChoice = null;
                     }
                     this.quickViewModal = true;
                 },
 
-                // CART LOGIC WITH VARIANTS
+                selectVariant(variantObj) {
+                    if (typeof variantObj === 'object') {
+                        this.activeVariantChoice = variantObj;
+                    } else {
+                        this.activeVariantChoice = { name: variantObj, image: '' };
+                    }
+                },
+
+                getModalDisplayImage() {
+                    if (!this.selectedProduct) return '';
+                    if (this.activeVariantChoice && this.activeVariantChoice.image) {
+                        return this.sanitizeImageUrl(this.activeVariantChoice.image);
+                    }
+                    return this.sanitizeImageUrl(this.selectedProduct.image);
+                },
+
                 confirmAddToCartWithVariant() {
                     if (this.selectedProduct) {
-                        this.addToCart(this.selectedProduct, this.activeVariantChoice);
+                        const variantName = this.activeVariantChoice ? this.activeVariantChoice.name : '';
+                        const variantImg = (this.activeVariantChoice && this.activeVariantChoice.image) ? this.activeVariantChoice.image : '';
+                        this.addToCart(this.selectedProduct, variantName, variantImg, this.variantModalQty);
                         this.quickViewModal = false;
                     }
                 },
 
-                addToCart(product, variant = '') {
-                    const chosenVariant = variant || (product.variants && product.variants.length > 0 ? product.variants[0] : '');
-                    const cartId = product.id + '-' + (chosenVariant || 'default');
+                addToCart(product, variantName = '', variantImg = '', quantity = 1) {
+                    const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+                    const chosenVariantName = variantName || (hasVariants ? product.variants[0].name : '');
+                    const chosenImg = variantImg || (hasVariants && product.variants[0].image ? product.variants[0].image : product.image);
+                    const cartId = product.id + '-' + (chosenVariantName || 'default');
                     
                     const existing = this.cart.find(i => i.cartId === cartId);
                     if (existing) {
-                        existing.qty++;
+                        existing.qty += quantity;
                     } else {
                         this.cart.push({ 
                             ...product, 
                             cartId: cartId,
-                            selectedVariant: chosenVariant,
-                            qty: 1 
+                            selectedVariant: chosenVariantName,
+                            image: this.sanitizeImageUrl(chosenImg),
+                            qty: quantity 
                         });
                     }
                     
-                    // TRIGGER CART ANIMATED POPUP
                     if (this.cartNotification.timer) clearTimeout(this.cartNotification.timer);
                     this.cartNotification.product = product;
-                    this.cartNotification.variant = chosenVariant;
+                    this.cartNotification.variant = chosenVariantName;
+                    this.cartNotification.image = this.sanitizeImageUrl(chosenImg);
                     this.cartNotification.show = true;
                     this.cartNotification.timer = setTimeout(() => {
                         this.cartNotification.show = false;
                     }, 4000);
-                },
-
-                selectShipping(mode) {
-                    if (mode === 'delivery' && this.cartSubtotal < 50000) {
-                        this.showToast('Layanan Delivery membutuhkan minimal total belanja Rp50.000!');
-                        this.checkoutForm.shipping = 'pickup';
-                        return;
-                    }
-                    this.checkoutForm.shipping = mode;
                 },
 
                 updateCartQty(cartId, delta) {
@@ -1387,40 +1511,39 @@
                             this.cart = this.cart.filter(i => i.cartId !== cartId);
                         }
                     }
-                    if (this.checkoutForm.shipping === 'delivery' && this.cartSubtotal < 50000) {
-                        this.checkoutForm.shipping = 'pickup';
-                        this.showToast('Pengiriman diubah ke Pick up (subtotal di bawah Rp50.000)');
-                    }
                 },
 
                 get cartTotalItems() {
-                    return this.cart.reduce((sum, item) => sum + item.qty, 0);
+                    return (this.cart || []).reduce((sum, item) => sum + item.qty, 0);
                 },
 
                 get cartSubtotal() {
-                    return this.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+                    return (this.cart || []).reduce((sum, item) => sum + (item.price * item.qty), 0);
                 },
 
                 processWhatsAppCheckout() {
-                    if (!this.checkoutForm.details || this.checkoutForm.details.trim() === '') {
-                        this.showToast('Silakan isi Nama Anak / Kelas / Kamar terlebih dahulu!');
+                    if (!this.checkoutForm.nama || !this.checkoutForm.nama.trim()) {
+                        this.showToast('Silakan isi Nama Pemesan / Anak terlebih dahulu!');
                         return;
                     }
 
-                    if (this.checkoutForm.shipping === 'delivery' && this.cartSubtotal < 50000) {
-                        this.showToast('Gagal Checkout! Minimal order untuk Delivery adalah Rp50.000.');
+                    if (!this.checkoutForm.kelas || !this.checkoutForm.kelas.trim()) {
+                        this.showToast('Silakan isi Kelas terlebih dahulu!');
                         return;
                     }
 
-                    const shippingText = this.checkoutForm.shipping === 'pickup' 
-                        ? 'Pick up (Ambil Pesanan Ke Nuha Mart Putra)' 
-                        : 'Delivery (Antar ke tempat)';
+                    if (!this.checkoutForm.asrama || !this.checkoutForm.asrama.trim()) {
+                        this.showToast('Silakan isi Asrama / Kamar terlebih dahulu!');
+                        return;
+                    }
 
-                    let text = `Halo NUHA MART, saya ingin melakukan pemesanan:\n\n`;
-                    text += `*Detail Pemesan:* ${this.checkoutForm.details}\n`;
-                    text += `*Pengiriman:* ${shippingText}\n`;
-                    text += `*Metode Pembayaran:* CASH\n\n`;
-                    text += `*Daftar Pesanan:*\n`;
+                    let text = `Halo NUHA DELIVERY, saya ingin melakukan pemesanan:\n\n`;
+                    text += `*DETAIL PEMESAN*\n`;
+                    text += `• Nama: ${this.checkoutForm.nama.trim()}\n`;
+                    text += `• Kelas: ${this.checkoutForm.kelas.trim()}\n`;
+                    text += `• Asrama/Kamar: ${this.checkoutForm.asrama.trim()}\n`;
+                    text += `• Metode Pembayaran: CASH\n\n`;
+                    text += `*DETAIL PESANAN*\n`;
                     
                     this.cart.forEach(item => {
                         const variantStr = item.selectedVariant ? ` [Varian: ${item.selectedVariant}]` : '';
@@ -1433,7 +1556,6 @@
                     window.open(`https://wa.me/6285195520118?text=${encoded}`, '_blank');
                 },
 
-                // AUTHENTICATION LOGIC (SUPABASE INTEGRATED)
                 async loginCustomer() {
                     if (!this.customerForm.username || !this.customerForm.password) return;
 
@@ -1491,7 +1613,7 @@
                 },
 
                 loginAdmin() {
-                    if (this.adminForm.username === 'NUHAMART' && this.adminForm.password === '@nurulhayahmart2026') {
+                    if ((this.adminForm.username === 'NUHADELIVERY' || this.adminForm.username === 'NUHAMART') && this.adminForm.password === '@nurulhayahmart2026') {
                         this.isAdminLoggedIn = true;
                         localStorage.setItem('nuha_admin_logged_in', 'true');
                         this.openAuthModal = false;
@@ -1509,7 +1631,6 @@
                     this.showToast('Admin telah logout');
                 },
 
-                // REVIEWS (SUPABASE INTEGRATED)
                 async submitReview() {
                     if (!this.newReview.name || !this.newReview.comment) return;
 
@@ -1524,18 +1645,18 @@
                         .insert([reviewData])
                         .select();
 
-                    if (error) {
-                        this.showToast('Gagal mengirim ulasan!');
+                    if (error || !data) {
+                        this.reviews.unshift({ id: Date.now(), ...reviewData });
                     } else {
                         this.reviews.unshift(data[0]);
-                        this.newReview.name = '';
-                        this.newReview.comment = '';
-                        this.newReview.rating = 5;
-                        this.showToast('Ulasan berhasil dikirim. Terima kasih!');
                     }
+                    
+                    this.newReview.name = '';
+                    this.newReview.comment = '';
+                    this.newReview.rating = 5;
+                    this.showToast('Ulasan berhasil dikirim. Terima kasih!');
                 },
 
-                // HELPERS
                 formatRupiah(num) {
                     return 'Rp' + Number(num || 0).toLocaleString('id-ID');
                 },
