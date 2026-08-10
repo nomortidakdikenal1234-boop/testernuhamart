@@ -6,9 +6,9 @@
     <title>Nuha Delivery</title>
     <!-- Favicon Logo Transparan -->
     <link rel="icon" type="image/png" href="https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png">
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Alpine.js -->
+    <!-- Alpine.js CDN -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -51,7 +51,6 @@
 </head>
 <body x-data="nuhaApp()" x-init="initApp()" class="antialiased text-slate-800 bg-white min-h-screen flex flex-col justify-between">
 
-    <!-- STICKY NAVBAR -->
     <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-xs transition-all duration-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-20 sm:h-24">
@@ -72,7 +71,7 @@
                     </button>
                 </nav>
 
-                <!-- HEADER ACTIONS & ICONS -->
+                <!-- HEADER ACTIONS & SEARCH -->
                 <div class="flex items-center space-x-3 sm:space-x-4">
                     <!-- SEARCH BAR WITH LIVE INSTANT DROPDOWN -->
                     <div class="relative flex items-center" @click.outside="searchFocused = false">
@@ -205,7 +204,6 @@
         </div>
     </header>
 
-    <!-- HERO SECTION -->
     <section id="beranda" class="relative overflow-hidden text-white min-h-[420px] sm:min-h-[540px] lg:min-h-[620px] flex items-center justify-center py-20 sm:py-32 lg:py-40 bg-cover bg-center bg-no-repeat" :style="'background-image: url(\'' + heroBgUrl + '\');'">
         <div class="absolute inset-0 bg-slate-950/50 backdrop-blur-[1px]"></div>
 
@@ -226,7 +224,6 @@
             <div class="max-w-2xl mx-auto mb-2 relative group">
                 <p x-text="heroSubheadline" class="text-base sm:text-lg text-slate-100 leading-relaxed font-medium drop-shadow-sm"></p>
                 
-                <!-- TOMBOL EDIT CEPAT INLINE TEKS INI -->
                 <button x-show="isAdminLoggedIn" @click="openEditHeroModal = true" class="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-amber-400/90 hover:bg-amber-400 text-slate-900 text-xs font-bold rounded-lg shadow-md transition-all">
                     ✏️ Edit Teks Ini
                 </button>
@@ -234,7 +231,6 @@
         </div>
     </section>
 
-    <!-- CATEGORY STICKY BAR -->
     <section id="kategori" class="py-6 bg-white border-b border-slate-100 sticky top-20 z-30 backdrop-blur-md bg-white/90 shadow-2xs">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between flex-wrap gap-4">
@@ -268,7 +264,6 @@
         </div>
     </section>
 
-    <!-- PRODUCTS SECTION -->
     <section id="produk" class="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 flex-1">
         
         <!-- ADMIN SETTINGS & PRODUCT CREATION FORM -->
@@ -300,7 +295,6 @@
                         <input type="number" x-model.number="newProduct.price" required placeholder="13000" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
                     </div>
                     
-                    <!-- BERAT PRODUK INPUT (WEIGHT KHUSUS) -->
                     <div class="lg:col-span-2">
                         <label class="block text-xs font-bold text-slate-700 mb-1">Berat Produk (Gram)</label>
                         <input type="number" x-model.number="newProduct.weight" required placeholder="250" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
@@ -311,13 +305,11 @@
                         <input type="number" x-model.number="newProduct.stock" required placeholder="28" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
                     </div>
 
-                    <!-- MAIN IMAGE INPUT -->
                     <div class="lg:col-span-12">
                         <label class="block text-xs font-bold text-slate-700 mb-1">URL / Kode Gambar Utama</label>
                         <input type="text" x-model="newProduct.image" placeholder="Tempel URL atau Kode HTML ImgBB / Postimages" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
                         <p class="text-[10px] text-slate-500 mt-1">*Bisa link ImgBB, Postimages, Google Drive, atau HTML img tag</p>
 
-                        <!-- LIVE PREVIEW THUMBNAIL -->
                         <div x-show="newProduct.image.trim()" class="mt-2 flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200">
                             <img :src="sanitizeImageUrl(newProduct.image)" referrerpolicy="no-referrer" class="w-12 h-12 object-cover rounded-lg bg-slate-100 border border-slate-100" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Link+Error';">
                             <div class="text-[11px]">
@@ -327,11 +319,10 @@
                         </div>
                     </div>
                     
-                    <!-- DYNAMIC VARIANT TABLE BUILDER -->
                     <div class="lg:col-span-12 bg-white p-5 rounded-2xl border border-teal-100 space-y-4">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tabel Pengaturan Varian (Bisa Dengan Foto / Boleh Polosan)</h4>
+                                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tabel Pengaturan Varian</h4>
                                 <p class="text-[11px] text-slate-500">Isi Nama Varian (misal: Teh, Melon, Leci). Link Foto Varian sifatnya *Opsional*.</p>
                             </div>
                             <button type="button" @click="addVariantRow()" class="px-3.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors flex items-center gap-1">
@@ -339,13 +330,11 @@
                             </button>
                         </div>
 
-                        <!-- QUICK COMMA PARSER INPUT -->
                         <div class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                             <span class="text-xs font-semibold text-slate-600 whitespace-nowrap">Input Cepat (Pisahkan Koma):</span>
                             <input type="text" x-model="newProduct.quickVariantsInput" @input="parseQuickVariants()" placeholder="Contoh: Teh, Melon, Leci, Sirsak, Mangga" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
                         </div>
 
-                        <!-- VARIANT ROWS LIST -->
                         <div class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
                             <template x-for="(vRow, vIdx) in newProduct.variantsList" :key="vIdx">
                                 <div class="flex flex-col sm:flex-row items-center gap-2.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
@@ -354,7 +343,7 @@
                                         <input type="text" x-model="vRow.name" placeholder="Nama Varian (misal: Melon)" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
                                     </div>
                                     <div class="w-full sm:flex-1 flex items-center gap-2">
-                                        <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional / Boleh Kosong)" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
+                                        <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional)" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
                                         
                                         <template x-if="vRow.image && vRow.image.trim()">
                                             <img :src="sanitizeImageUrl(vRow.image)" referrerpolicy="no-referrer" class="w-8 h-8 object-cover rounded-lg bg-white border border-slate-200 flex-shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Error';">
@@ -385,7 +374,6 @@
                     <span class="text-sm text-slate-400 font-medium" x-text="'- ' + filteredCatalogProducts.length + ' item'"></span>
                 </div>
 
-                <!-- SORT DROPDOWN -->
                 <div class="relative" x-data="{ openSort: false }">
                     <button @click="openSort = !openSort" class="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-teal-600 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200">
                         <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/></svg>
@@ -448,7 +436,6 @@
                                     <div class="relative aspect-square overflow-hidden bg-slate-100 cursor-pointer" @click="openQuickView(product)">
                                         <img :src="sanitizeImageUrl(product.image)" :alt="product.name" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
                                         
-                                        <!-- ADMIN DELETE BUTTON -->
                                         <button x-show="isAdminLoggedIn" @click.stop="deleteProduct(product.id)" class="absolute top-2 right-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-xs z-10 transition-colors">
                                             Hapus
                                         </button>
@@ -562,7 +549,6 @@
         </div>
     </section>
 
-    <!-- REVIEWS SECTION -->
     <section id="ulasan" class="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100">
         <div class="bg-slate-50/70 rounded-3xl p-6 sm:p-10 border border-slate-100 shadow-2xs">
             <div class="text-center max-w-xl mx-auto mb-10">
@@ -604,7 +590,7 @@
                     </form>
                 </div>
 
-                <!-- DAFTAR ULASAN DENGAN TOMBOL HAPUS ADMIN -->
+                <!-- DAFTAR ULASAN -->
                 <div class="lg:col-span-7 space-y-3.5 max-h-[500px] overflow-y-auto pr-1">
                     <template x-for="rev in reviews" :key="rev.id">
                         <div class="p-4 rounded-2xl border border-slate-200/80 bg-white shadow-2xs space-y-2 relative">
@@ -638,7 +624,6 @@
         </div>
     </section>
 
-    <!-- FOOTER -->
     <footer class="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
             <div class="space-y-4">
@@ -675,16 +660,13 @@
         </div>
     </footer>
 
-    <!-- POP-UP IKLAN INFAQ MODAL (MUNCUL PERTAMA KALI & REPEAT TIAP 2 MENIT) -->
+    <!-- POP-UP INFAQ MODAL -->
     <div x-show="infaqModalOpen" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
         <div @click.outside="infaqModalOpen = false" class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative border border-emerald-100 my-auto text-center max-h-[90vh] overflow-y-auto">
-            
-            <!-- CLOSE BUTTON -->
             <button @click="infaqModalOpen = false" class="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full p-2 transition-colors z-10" title="Tutup Iklan">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
 
-            <!-- LOGO INFAQ -->
             <a href="https://ibb.co.com/5gm4jjM8" target="_blank" class="inline-block group mb-3">
                 <img src="https://i.ibb.co.com/jPmfww6M/Primary-Logo-1-jpg.jpg" alt="Logo Infaq NUHA" class="w-20 h-20 sm:w-24 sm:h-24 object-contain mx-auto rounded-2xl shadow-sm border border-emerald-100 group-hover:scale-105 transition-transform">
             </a>
@@ -699,29 +681,17 @@
                 Raih Keberkahan Melalui Infaq NUHA
             </h3>
 
-            <!-- NARRATIVE TEXT / INFAQ DESCRIPTION -->
             <div class="mt-4 bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100 text-xs sm:text-sm text-slate-600 leading-relaxed text-left space-y-3">
                 <h4 class="font-extrabold text-emerald-900 text-center text-sm sm:text-base">Dari Transaksi Menjadi Kebaikan</h4>
-                
                 <p>Setiap transaksi bukan sekadar tentang membeli dan mendapatkan manfaat. Di dalamnya, ada kesempatan untuk menghadirkan manfaat bagi orang lain.</p>
-                
                 <p>Melalui <strong>Lembaga Infaq Nurul Hayah</strong>, setiap pembelian turut menjadi bagian dari ikhtiar dalam mendukung program pendidikan dan sosial bagi mereka yang membutuhkan.</p>
-                
-                <p>Apa yang kita beli mungkin sederhana, tetapi kebaikan yang lahir darinya dapat berarti besar bagi sesama.</p>
                 
                 <div class="p-3 bg-white rounded-xl border border-emerald-200 text-center font-medium text-emerald-800 italic my-2">
                     Mari jadikan setiap transaksi lebih bermakna.<br>
                     <strong>Belanja dengan manfaat, berbagi dengan hati, dan bersama menumbuhkan kebaikan.</strong>
                 </div>
-                
-                <p>Bagi Bapak/Ibu yang berkenan menambah keberkahan melalui infaq, dapat menyalurkannya melalui QRIS Lembaga Infaq Nurul Hayah yang tersedia di halaman ini.</p>
-                
-                <p class="text-center italic text-slate-500 text-[11px] sm:text-xs">
-                    "Karena kebaikan tidak selalu dimulai dari sesuatu yang besar. Terkadang, ia tumbuh dari satu transaksi sederhana yang dilakukan dengan niat yang baik."
-                </p>
             </div>
 
-            <!-- REKENING & QRIS BOX -->
             <div class="mt-5 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-4 text-left space-y-2">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-bold text-emerald-900 uppercase">Rekening Infaq Resmi</span>
@@ -742,10 +712,8 @@
                 </div>
             </div>
 
-            <!-- ACTION BUTTONS -->
             <div class="mt-6 flex flex-col sm:flex-row gap-2.5">
                 <button @click="showQrisModal = true" class="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
                     <span>Infaq via QRIS</span>
                 </button>
                 <button @click="infaqViaWA()" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5">
@@ -755,15 +723,13 @@
                     Tutup
                 </button>
             </div>
-            
-            <p class="text-[10px] text-slate-400 mt-3">*Pesan ini muncul setiap 2 menit untuk mengajak pada kebaikan.</p>
         </div>
     </div>
 
-    <!-- MODAL POPUP DISPLAY QRIS -->
+    <!-- QRIS DISPLAY MODAL -->
     <div x-show="showQrisModal" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
         <div @click.outside="showQrisModal = false" class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl relative border border-slate-100 text-center">
-            <button @click="showQrisModal = false" class="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full p-2 transition-colors" title="Tutup QRIS">
+            <button @click="showQrisModal = false" class="absolute top-4 right-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full p-2 transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
 
@@ -778,7 +744,6 @@
                 Bisa di-scan dari GoPay, OVO, Dana, LinkAja, ShopeePay, BCA, BSI, Mandiri, dan e-wallet/m-banking lainnya.
             </p>
 
-            <!-- GAMBAR QRIS -->
             <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-inner inline-block">
                 <a href="https://ibb.co.com/PvQ8Y3vg" target="_blank" title="Buka Gambar QRIS">
                     <img src="https://i.ibb.co.com/v6Y8Bg6k/0000642199.png" alt="QRIS Infaq NUHA" class="w-64 h-auto mx-auto rounded-xl object-contain shadow-xs hover:scale-105 transition-transform duration-200 border border-slate-100">
@@ -787,7 +752,6 @@
 
             <div class="mt-5 space-y-2">
                 <a href="https://i.ibb.co.com/v6Y8Bg6k/0000642199.png" target="_blank" download="QRIS-Infaq-NUHA.png" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2 shadow-xs">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                     <span>Buka / Unduh Gambar QRIS</span>
                 </a>
                 <button @click="showQrisModal = false" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors">
@@ -908,7 +872,6 @@
             <!-- NOT LOGGED IN STATE -->
             <template x-if="!isAdminLoggedIn && !isCustomerLoggedIn">
                 <div>
-                    <!-- TAB SELECTOR -->
                     <div class="flex border-b border-slate-200 mb-6">
                         <button @click="authTab = 'customer'" :class="authTab === 'customer' ? 'border-b-2 border-teal-600 text-teal-600 font-bold' : 'text-slate-500 font-medium'" class="flex-1 py-2.5 text-xs sm:text-sm text-center transition-colors">
                             Pelanggan
@@ -929,7 +892,6 @@
                             </button>
                         </div>
 
-                        <!-- LOGIN PELANGGAN FORM -->
                         <form x-show="customerAuthMode === 'login'" @submit.prevent="loginCustomer()" class="space-y-3">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
@@ -944,7 +906,6 @@
                             </button>
                         </form>
 
-                        <!-- REGISTER PELANGGAN FORM -->
                         <form x-show="customerAuthMode === 'register'" @submit.prevent="registerCustomer()" class="space-y-3">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
@@ -985,7 +946,7 @@
         </div>
     </div>
 
-    <!-- MODAL EDIT HERO TEKS (ADMIN KHUSUS) -->
+    <!-- MODAL EDIT HERO TEKS -->
     <div x-show="openEditHeroModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
         <div @click.outside="openEditHeroModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100">
             <button @click="openEditHeroModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600">
@@ -1173,8 +1134,7 @@
                         </div>
 
                         <button @click="processWhatsAppCheckout()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-all shadow-xs flex items-center justify-center gap-2 mt-2">
-                            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
-                            Pesan di WhatsApp
+                            <span>Pesan di WhatsApp</span>
                         </button>
                     </div>
                 </div>
@@ -1188,7 +1148,6 @@
         <span x-text="toast.message"></span>
     </div>
 
-    <!-- SUPABASE & ALPINE SCRIPT -->
     <script>
         if (typeof window !== 'undefined' && window.WebSocket) {
             const OriginalWebSocket = window.WebSocket;
@@ -1226,12 +1185,7 @@
                 heroTypedText: '',
                 heroSubheadline: localStorage.getItem('nuha_hero_subheadline') || 'Saat ini kami sedang menambah daftar menu lebih banyak, silahkan hubungi admin untuk request!!',
                 openEditHeroModal: false,
-                
-                // TRACKING DELETED ITEMS TO PREVENT REAPPEARING ON REFRESH
-                deletedProductIds: JSON.parse(localStorage.getItem('nuha_deleted_product_ids') || '[]'),
-                deletedReviewIds: JSON.parse(localStorage.getItem('nuha_deleted_review_ids') || '[]'),
 
-                // INFAQ MODAL STATE (1st load + Reappears every 2 mins)
                 infaqModalOpen: true,
                 showQrisModal: false,
                 infaqIntervalTimer: null,
@@ -1363,6 +1317,45 @@
                 newReview: { name: '', rating: 5, comment: '' },
                 toast: { show: false, message: '' },
 
+                get searchResults() {
+                    if (!this.searchQuery || !this.searchQuery.trim()) return [];
+                    const q = this.searchQuery.toLowerCase().trim();
+                    return (this.products || []).filter(p => {
+                        const nameMatch = p.name && p.name.toLowerCase().includes(q);
+                        const catMatch = p.category && p.category.toLowerCase().includes(q);
+                        const variantMatch = Array.isArray(p.variants) && p.variants.some(v => (v.name || (typeof v === 'string' ? v : '')).toLowerCase().includes(q));
+                        return nameMatch || catMatch || variantMatch;
+                    });
+                },
+
+                getProductsByCategory(catName) {
+                    if (!catName) return [];
+                    return (this.products || []).filter(p => p.category === catName);
+                },
+
+                toggleShowAllCatalog() {
+                    this.showAllCatalogView = !this.showAllCatalogView;
+                    if (this.showAllCatalogView) {
+                        this.selectedCatalogCategory = 'Semua';
+                    }
+                },
+
+                openQuickView(product) {
+                    this.selectedProduct = product;
+                    if (Array.isArray(product.variants) && product.variants.length > 0) {
+                        const firstV = product.variants[0];
+                        this.activeVariantChoice = typeof firstV === 'object' ? firstV : { name: firstV, image: '' };
+                    } else {
+                        this.activeVariantChoice = null;
+                    }
+                    this.variantModalQty = 1;
+                    this.quickViewModal = true;
+                },
+
+                selectVariant(v) {
+                    this.activeVariantChoice = typeof v === 'object' ? v : { name: v, image: '' };
+                },
+
                 initApp() {
                     this.startHeroTypewriter();
                     this.fetchProducts();
@@ -1430,107 +1423,80 @@
                 },
 
                 async fetchProducts() {
-                    const localCustomProducts = JSON.parse(localStorage.getItem('nuha_local_products') || '[]');
                     try {
                         const { data, error } = await db
                             .from('products')
                             .select('*')
                             .order('id', { ascending: false });
 
-                        if (!error && data && data.length > 0) {
-                            const combined = [...data, ...localCustomProducts];
-                            const uniqueMap = new Map();
-                            combined.forEach(p => uniqueMap.set(p.id, p));
-                            
-                            this.products = Array.from(uniqueMap.values()).map(p => ({
-                                ...p,
-                                weight: p.weight || 250,
-                                variants: Array.isArray(p.variants) ? p.variants : []
-                            }));
-                        } else if (localCustomProducts.length > 0) {
-                            const combined = [...localCustomProducts, ...this.products];
-                            const uniqueMap = new Map();
-                            combined.forEach(p => uniqueMap.set(p.id, p));
-                            this.products = Array.from(uniqueMap.values());
+                        if (!error && data) {
+                            if (data.length > 0) {
+                                this.products = data.map(p => ({
+                                    ...p,
+                                    weight: p.weight || 250,
+                                    variants: Array.isArray(p.variants) ? p.variants : []
+                                }));
+                            } else {
+                                const isSeeded = localStorage.getItem('nuha_products_seeded');
+                                if (!isSeeded && this.products.length > 0) {
+                                    const { data: seededData, error: seedError } = await db
+                                        .from('products')
+                                        .insert(this.products.map(p => ({
+                                            name: p.name,
+                                            category: p.category,
+                                            price: p.price,
+                                            stock: p.stock,
+                                            weight: p.weight,
+                                            image: p.image,
+                                            variants: p.variants
+                                        })))
+                                        .select();
+                                    if (!seedError && seededData) {
+                                        this.products = seededData;
+                                        localStorage.setItem('nuha_products_seeded', 'true');
+                                    }
+                                } else {
+                                    this.products = [];
+                                }
+                            }
                         }
                     } catch (e) {
-                        console.warn('Using local fallback products:', e.message);
-                        if (localCustomProducts.length > 0) {
-                            const combined = [...localCustomProducts, ...this.products];
-                            const uniqueMap = new Map();
-                            combined.forEach(p => uniqueMap.set(p.id, p));
-                            this.products = Array.from(uniqueMap.values());
-                        }
+                        console.warn('Gagal memuat produk dari Supabase:', e.message);
                     }
-
-                    // Strict filter against deleted product IDs
-                    this.products = this.products.filter(p => 
-                        !this.deletedProductIds.includes(p.id) && 
-                        !this.deletedProductIds.includes(String(p.id)) &&
-                        !this.deletedProductIds.includes(Number(p.id))
-                    );
                 },
 
                 async fetchReviews() {
-                    const localCustomReviews = JSON.parse(localStorage.getItem('nuha_local_reviews') || '[]');
                     try {
                         const { data, error } = await db
                             .from('reviews')
                             .select('*')
                             .order('id', { ascending: false });
 
-                        if (!error && data && data.length > 0) {
-                            const combined = [...data, ...localCustomReviews];
-                            const uniqueMap = new Map();
-                            combined.forEach(r => uniqueMap.set(r.id, r));
-                            this.reviews = Array.from(uniqueMap.values());
-                        } else if (localCustomReviews.length > 0) {
-                            const combined = [...localCustomReviews, ...this.reviews];
-                            const uniqueMap = new Map();
-                            combined.forEach(r => uniqueMap.set(r.id, r));
-                            this.reviews = Array.from(uniqueMap.values());
+                        if (!error && data) {
+                            if (data.length > 0) {
+                                this.reviews = data;
+                            } else {
+                                const isSeeded = localStorage.getItem('nuha_reviews_seeded');
+                                if (!isSeeded && this.reviews.length > 0) {
+                                    const { data: seededData, error: seedError } = await db
+                                        .from('reviews')
+                                        .insert(this.reviews.map(r => ({
+                                            name: r.name,
+                                            rating: r.rating,
+                                            comment: r.comment
+                                        })))
+                                        .select();
+                                    if (!seedError && seededData) {
+                                        this.reviews = seededData;
+                                        localStorage.setItem('nuha_reviews_seeded', 'true');
+                                    }
+                                } else {
+                                    this.reviews = [];
+                                }
+                            }
                         }
                     } catch (e) {
-                        console.warn('Using local fallback reviews:', e.message);
-                        if (localCustomReviews.length > 0) {
-                            const combined = [...localCustomReviews, ...this.reviews];
-                            const uniqueMap = new Map();
-                            combined.forEach(r => uniqueMap.set(r.id, r));
-                            this.reviews = Array.from(uniqueMap.values());
-                        }
-                    }
-
-                    // Strict filter against deleted review IDs
-                    this.reviews = this.reviews.filter(r => 
-                        !this.deletedReviewIds.includes(r.id) && 
-                        !this.deletedReviewIds.includes(String(r.id)) &&
-                        !this.deletedReviewIds.includes(Number(r.id))
-                    );
-                },
-
-                get searchResults() {
-                    if (!this.searchQuery || !this.searchQuery.trim()) return [];
-                    const q = this.searchQuery.toLowerCase().trim();
-                    return this.products.filter(p => {
-                        const nameMatch = p.name && p.name.toLowerCase().includes(q);
-                        const catMatch = p.category && p.category.toLowerCase().includes(q);
-                        const variantMatch = Array.isArray(p.variants) && p.variants.some(v => (v.name || v).toLowerCase().includes(q));
-                        return nameMatch || catMatch || variantMatch;
-                    });
-                },
-
-                getProductsByCategory(catName) {
-                    return this.products.filter(p => {
-                        const matchesCat = p.category === catName;
-                        const matchesSearch = !this.searchQuery || p.name.toLowerCase().includes(this.searchQuery.toLowerCase().trim()) || (Array.isArray(p.variants) && p.variants.some(v => (v.name || v).toLowerCase().includes(this.searchQuery.toLowerCase().trim())));
-                        return matchesCat && matchesSearch;
-                    });
-                },
-
-                toggleShowAllCatalog() {
-                    this.showAllCatalogView = !this.showAllCatalogView;
-                    if (this.showAllCatalogView) {
-                        this.selectedCatalogCategory = 'Semua';
+                        console.warn('Gagal memuat ulasan dari Supabase:', e.message);
                     }
                 },
 
@@ -1552,7 +1518,7 @@
                         items = items.filter(p => {
                             const nameMatch = p.name && p.name.toLowerCase().includes(q);
                             const catMatch = p.category && p.category.toLowerCase().includes(q);
-                            const variantMatch = Array.isArray(p.variants) && p.variants.some(v => (v.name || v).toLowerCase().includes(q));
+                            const variantMatch = Array.isArray(p.variants) && p.variants.some(v => (v.name || (typeof v === 'string' ? v : '')).toLowerCase().includes(q));
                             return nameMatch || catMatch || variantMatch;
                         });
                     }
@@ -1680,7 +1646,6 @@
                         variants: parsedVariants
                     };
 
-                    let addedItem = null;
                     try {
                         const { data, error } = await db
                             .from('products')
@@ -1688,22 +1653,21 @@
                             .select();
 
                         if (!error && data && data[0]) {
-                            addedItem = { ...data[0], variants: parsedVariants, weight: Number(this.newProduct.weight || 250) };
+                            const addedItem = {
+                                ...data[0],
+                                weight: Number(data[0].weight || 250),
+                                variants: Array.isArray(data[0].variants) ? data[0].variants : parsedVariants
+                            };
+                            this.products.unshift(addedItem);
+                            this.showToast('Produk berhasil ditambahkan & tersimpan di database!');
+                        } else {
+                            console.error('Gagal tambah ke database:', error);
+                            this.showToast('Gagal menyimpan ke database!');
                         }
                     } catch(e) {
-                        console.warn('Supabase add product error:', e);
+                        console.error('Supabase add product error:', e);
+                        this.showToast('Terjadi kesalahan saat menambah produk!');
                     }
-
-                    if (!addedItem) {
-                        addedItem = { id: Date.now(), ...newProductData };
-                    }
-
-                    this.products.unshift(addedItem);
-
-                    // Save to local products array
-                    const localProds = JSON.parse(localStorage.getItem('nuha_local_products') || '[]');
-                    localProds.unshift(addedItem);
-                    localStorage.setItem('nuha_local_products', JSON.stringify(localProds));
 
                     this.newProduct.name = '';
                     this.newProduct.price = '';
@@ -1712,75 +1676,43 @@
                     this.newProduct.image = '';
                     this.newProduct.quickVariantsInput = '';
                     this.newProduct.variantsList = [{ name: '', image: '' }];
-                    this.showToast('Produk, Berat & Varian berhasil ditambahkan!');
                 },
 
                 async deleteProduct(id) {
-                    if (!confirm('Apakah Anda yakin ingin menghapus produk ini?')) return;
+                    if (!confirm('Apakah Anda yakin ingin menghapus produk ini secara PERMANEN dari database?')) return;
 
-                    // Permanently record ID into deleted IDs list
-                    if (!this.deletedProductIds.includes(id)) {
-                        this.deletedProductIds.push(id);
-                        localStorage.setItem('nuha_deleted_product_ids', JSON.stringify(this.deletedProductIds));
-                    }
-
-                    // Remove from local custom products if exists
-                    const localProds = JSON.parse(localStorage.getItem('nuha_local_products') || '[]');
-                    const updatedLocalProds = localProds.filter(p => p.id !== id);
-                    localStorage.setItem('nuha_local_products', JSON.stringify(updatedLocalProds));
-
-                    // Attempt Supabase deletion
                     try {
-                        await db.from('products').delete().eq('id', id);
+                        const { error } = await db.from('products').delete().eq('id', id);
+                        if (error) {
+                            console.error('Supabase delete error:', error);
+                            this.showToast('Gagal menghapus produk dari database!');
+                            return;
+                        }
+                        
+                        this.products = this.products.filter(p => p.id !== id && String(p.id) !== String(id));
+                        this.showToast('Produk berhasil dihapus PERMANEN dari database!');
                     } catch (e) {
-                        console.warn('Supabase delete error:', e);
+                        console.error('Delete product error:', e);
+                        this.showToast('Terjadi kesalahan saat menghapus produk!');
                     }
-
-                    this.products = this.products.filter(p => p.id !== id);
-                    this.showToast('Produk berhasil dihapus secara permanen!');
                 },
 
                 async deleteReview(id) {
-                    if (!confirm('Apakah Anda yakin ingin menghapus ulasan ini?')) return;
+                    if (!confirm('Apakah Anda yakin ingin menghapus ulasan ini secara PERMANEN dari database?')) return;
 
-                    // Permanently record ID into deleted review IDs list
-                    if (!this.deletedReviewIds.includes(id)) {
-                        this.deletedReviewIds.push(id);
-                        localStorage.setItem('nuha_deleted_review_ids', JSON.stringify(this.deletedReviewIds));
-                    }
-
-                    // Remove from local custom reviews if exists
-                    const localRevs = JSON.parse(localStorage.getItem('nuha_local_reviews') || '[]');
-                    const updatedLocalRevs = localRevs.filter(r => r.id !== id);
-                    localStorage.setItem('nuha_local_reviews', JSON.stringify(updatedLocalRevs));
-
-                    // Attempt Supabase deletion
                     try {
-                        await db.from('reviews').delete().eq('id', id);
+                        const { error } = await db.from('reviews').delete().eq('id', id);
+                        if (error) {
+                            console.error('Supabase delete review error:', error);
+                            this.showToast('Gagal menghapus ulasan dari database!');
+                            return;
+                        }
+                        
+                        this.reviews = this.reviews.filter(r => r.id !== id && String(r.id) !== String(id));
+                        this.showToast('Ulasan berhasil dihapus PERMANEN dari database!');
                     } catch (e) {
-                        console.warn('Supabase delete review error:', e);
-                    }
-
-                    this.reviews = this.reviews.filter(r => r.id !== id);
-                    this.showToast('Ulasan berhasil dihapus secara permanen!');
-                },
-
-                openQuickView(product) {
-                    this.selectedProduct = product;
-                    this.variantModalQty = 1;
-                    if (Array.isArray(product.variants) && product.variants.length > 0) {
-                        this.activeVariantChoice = product.variants[0];
-                    } else {
-                        this.activeVariantChoice = null;
-                    }
-                    this.quickViewModal = true;
-                },
-
-                selectVariant(variantObj) {
-                    if (typeof variantObj === 'object') {
-                        this.activeVariantChoice = variantObj;
-                    } else {
-                        this.activeVariantChoice = { name: variantObj, image: '' };
+                        console.error('Delete review error:', e);
+                        this.showToast('Terjadi kesalahan saat menghapus ulasan!');
                     }
                 },
 
@@ -1803,7 +1735,7 @@
 
                 addToCart(product, variantName = '', variantImg = '', quantity = 1) {
                     const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
-                    const chosenVariantName = variantName || (hasVariants ? product.variants[0].name : '');
+                    const chosenVariantName = variantName || (hasVariants ? (product.variants[0].name || product.variants[0]) : '');
                     const chosenImg = variantImg || (hasVariants && product.variants[0].image ? product.variants[0].image : product.image);
                     const cartId = product.id + '-' + (chosenVariantName || 'default');
                     
@@ -1980,7 +1912,6 @@
                         comment: this.newReview.comment
                     };
 
-                    let addedReview = null;
                     try {
                         const { data, error } = await db
                             .from('reviews')
@@ -1988,27 +1919,20 @@
                             .select();
 
                         if (!error && data && data[0]) {
-                            addedReview = data[0];
+                            this.reviews.unshift(data[0]);
+                            this.showToast('Ulasan berhasil dikirim & tersimpan di database!');
+                        } else {
+                            console.error('Supabase add review error:', error);
+                            this.showToast('Gagal mengirim ulasan!');
                         }
                     } catch(e) {
-                        console.warn('Supabase add review error:', e);
+                        console.error('Supabase add review error:', e);
+                        this.showToast('Terjadi kesalahan saat mengirim ulasan!');
                     }
 
-                    if (!addedReview) {
-                        addedReview = { id: Date.now(), ...reviewData };
-                    }
-
-                    this.reviews.unshift(addedReview);
-
-                    // Save to local custom reviews array
-                    const localRevs = JSON.parse(localStorage.getItem('nuha_local_reviews') || '[]');
-                    localRevs.unshift(addedReview);
-                    localStorage.setItem('nuha_local_reviews', JSON.stringify(localRevs));
-                    
                     this.newReview.name = '';
                     this.newReview.comment = '';
                     this.newReview.rating = 5;
-                    this.showToast('Ulasan berhasil dikirim. Terima kasih!');
                 },
 
                 formatRupiah(num) {
