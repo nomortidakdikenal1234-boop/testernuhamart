@@ -58,7 +58,7 @@
                 
                 <!-- BRAND LOGO -->
                 <a href="#" class="flex items-center gap-3 group">
-                    <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-18 lg:h-20 w-auto object-contain transition-transform duration-300 group-hover:scale-105" onerror="this.src='https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png'">
+                    <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-18 lg:h-20 w-auto object-contain transition-transform duration-300 group-hover:scale-105" onerror="this.onerror=null; this.src='https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png'">
                 </a>
 
                 <!-- DESKTOP NAVIGATION LINKS -->
@@ -102,7 +102,7 @@
                                     </div>
                                     <template x-for="item in searchResults" :key="item.id">
                                         <div @mousedown="openQuickView(item); searchQuery = ''; searchFocused = false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-teal-50/70 cursor-pointer transition-colors border-b border-slate-50 last:border-b-0 group">
-                                            <img :src="sanitizeImageUrl(item.image)" :alt="item.name" class="w-10 h-10 object-cover rounded-xl bg-slate-100 flex-shrink-0 border border-slate-100" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHADELIVERY'">
+                                            <img :src="sanitizeImageUrl(item.image)" :alt="item.name" referrerpolicy="no-referrer" class="w-10 h-10 object-cover rounded-xl bg-slate-100 flex-shrink-0 border border-slate-100" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
                                             <div class="flex-1 min-w-0">
                                                 <h5 class="text-xs font-bold text-slate-800 line-clamp-1 group-hover:text-teal-600 transition-colors" x-text="item.name"></h5>
                                                 <div class="flex items-center gap-2 mt-0.5">
@@ -160,7 +160,7 @@
                             <template x-if="cartNotification.product">
                                 <div>
                                     <div class="flex items-center gap-3 mb-3">
-                                        <img :src="cartNotification.image || cartNotification.product.image" :alt="cartNotification.product.name" class="w-14 h-14 object-cover rounded-xl bg-slate-100 border border-slate-100" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHADELIVERY'">
+                                        <img :src="cartNotification.image || cartNotification.product.image" :alt="cartNotification.product.name" referrerpolicy="no-referrer" class="w-14 h-14 object-cover rounded-xl bg-slate-100 border border-slate-100" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
                                         <div>
                                             <h4 class="font-bold text-slate-900 text-sm line-clamp-1" x-text="cartNotification.product.name"></h4>
                                             <p x-show="cartNotification.variant" class="text-xs text-teal-600 font-semibold" x-text="'Varian: ' + cartNotification.variant"></p>
@@ -272,7 +272,7 @@
     <!-- PRODUCTS SECTION -->
     <section id="produk" class="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 flex-1">
         
-        <!-- ADMIN SETTINGS & PRODUCT CREATION FORM WITH DYNAMIC VARIANT TABLE -->
+        <!-- ADMIN SETTINGS & PRODUCT CREATION FORM WITH LIVE IMAGE PREVIEW -->
         <div x-show="isAdminLoggedIn" class="space-y-6">
             
             <!-- ADMIN PRODUCT ADDITION WITH VARIANTS & STOK -->
@@ -306,13 +306,24 @@
                         <label class="block text-xs font-bold text-slate-700 mb-1">Jumlah Stok</label>
                         <input type="number" x-model.number="newProduct.stock" required placeholder="28" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
                     </div>
+
+                    <!-- MAIN IMAGE INPUT WITH LIVE PREVIEW -->
                     <div class="lg:col-span-3">
                         <label class="block text-xs font-bold text-slate-700 mb-1">URL / Kode Gambar Utama</label>
-                        <input type="text" x-model="newProduct.image" placeholder="Tempel URL atau Kode HTML ImgBB" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
-                        <p class="text-[10px] text-slate-500 mt-1">*Bisa link ImgBB, Postimages, atau HTML img tag</p>
+                        <input type="text" x-model="newProduct.image" placeholder="Tempel URL atau Kode HTML ImgBB / Postimages" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                        <p class="text-[10px] text-slate-500 mt-1">*Bisa link ImgBB, Postimages, Google Drive, atau HTML img tag</p>
+
+                        <!-- LIVE PREVIEW THUMBNAIL FOR MAIN IMAGE -->
+                        <div x-show="newProduct.image.trim()" class="mt-2 flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200">
+                            <img :src="sanitizeImageUrl(newProduct.image)" referrerpolicy="no-referrer" class="w-12 h-12 object-cover rounded-lg bg-slate-100 border border-slate-100" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Error';">
+                            <div class="text-[11px]">
+                                <span class="font-bold text-slate-800 block">Pratinjau Foto Utama</span>
+                                <span class="text-teal-600 font-semibold">Tautan berhasil terdeteksi</span>
+                            </div>
+                        </div>
                     </div>
                     
-                    <!-- DYNAMIC VARIANT TABLE BUILDER WITH OPTIONAL IMAGES -->
+                    <!-- DYNAMIC VARIANT TABLE BUILDER WITH OPTIONAL IMAGES AND LIVE PREVIEW -->
                     <div class="lg:col-span-12 bg-white p-5 rounded-2xl border border-teal-100 space-y-4">
                         <div class="flex items-center justify-between">
                             <div>
@@ -330,7 +341,7 @@
                             <input type="text" x-model="newProduct.quickVariantsInput" @input="parseQuickVariants()" placeholder="Contoh: Teh, Melon, Leci, Sirsak, Mangga" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
                         </div>
 
-                        <!-- VARIANT ROWS LIST -->
+                        <!-- VARIANT ROWS LIST WITH LIVE PREVIEW -->
                         <div class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
                             <template x-for="(vRow, vIdx) in newProduct.variantsList" :key="vIdx">
                                 <div class="flex flex-col sm:flex-row items-center gap-2.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
@@ -338,8 +349,13 @@
                                     <div class="w-full sm:w-1/3">
                                         <input type="text" x-model="vRow.name" placeholder="Nama Varian (misal: Melon)" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
                                     </div>
-                                    <div class="w-full sm:flex-1">
-                                        <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional / Boleh Kosong)" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
+                                    <div class="w-full sm:flex-1 flex items-center gap-2">
+                                        <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional / Boleh Kosong)" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
+                                        
+                                        <!-- VARIANT IMAGE LIVE THUMBNAIL -->
+                                        <template x-if="vRow.image && vRow.image.trim()">
+                                            <img :src="sanitizeImageUrl(vRow.image)" referrerpolicy="no-referrer" class="w-8 h-8 object-cover rounded-lg bg-white border border-slate-200 flex-shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Error';">
+                                        </template>
                                     </div>
                                     <button type="button" @click="removeVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 text-xs font-bold" title="Hapus Baris Varian">
                                         ✕ Hapus
@@ -428,7 +444,7 @@
                             <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group">
                                 <div>
                                     <div class="relative aspect-square overflow-hidden bg-slate-100 cursor-pointer" @click="openQuickView(product)">
-                                        <img :src="sanitizeImageUrl(product.image)" :alt="product.name" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHADELIVERY'">
+                                        <img :src="sanitizeImageUrl(product.image)" :alt="product.name" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
                                         <button x-show="isAdminLoggedIn" @click.stop="deleteProduct(product.id)" class="absolute top-2 right-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-xs z-10 transition-colors">
                                             Hapus
                                         </button>
@@ -493,7 +509,7 @@
                             <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group">
                                 <div>
                                     <div class="relative aspect-square overflow-hidden bg-slate-100 cursor-pointer" @click="openQuickView(product)">
-                                        <img :src="sanitizeImageUrl(product.image)" :alt="product.name" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHADELIVERY'">
+                                        <img :src="sanitizeImageUrl(product.image)" :alt="product.name" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
                                         <button x-show="isAdminLoggedIn" @click.stop="deleteProduct(product.id)" class="absolute top-2 right-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-xs z-10 transition-colors">
                                             Hapus
                                         </button>
@@ -611,7 +627,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
             <div class="space-y-4">
                 <div class="flex items-center gap-2.5">
-                    <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-16 w-auto object-contain" onerror="this.src='https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png'">
+                    <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-16 w-auto object-contain" onerror="this.onerror=null; this.src='https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png'">
                 </div>
             </div>
             <div>
@@ -654,7 +670,7 @@
                     
                     <!-- DYNAMIC PRODUCT / VARIANT PREVIEW IMAGE -->
                     <div class="relative w-full aspect-square sm:aspect-video rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 shadow-2xs">
-                        <img :src="getModalDisplayImage()" :alt="selectedProduct.name" referrerpolicy="no-referrer" class="w-full h-full object-cover transition-all duration-300" onerror="this.src='https://placehold.co/400x400/0d9488/ffffff?text=NUHADELIVERY'">
+                        <img :src="getModalDisplayImage()" :alt="selectedProduct.name" referrerpolicy="no-referrer" class="w-full h-full object-cover transition-all duration-300" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
                         <div x-show="activeVariantChoice && activeVariantChoice.image" class="absolute bottom-2 right-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg">
                             <span>Foto Varian: </span><span x-text="activeVariantChoice.name"></span>
                         </div>
@@ -724,7 +740,7 @@
 
             <!-- MODAL LOGO HEADER -->
             <div class="flex items-center justify-center gap-2 mb-4">
-                <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-16 w-auto object-contain" onerror="this.src='https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png'">
+                <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-16 w-auto object-contain" onerror="this.onerror=null; this.src='https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png'">
             </div>
 
             <!-- TAB SELECTOR -->
@@ -869,7 +885,7 @@
                     <template x-for="item in cart" :key="item.cartId">
                         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                             <div class="flex items-center gap-3">
-                                <img :src="item.image" :alt="item.name" class="w-12 h-12 object-cover rounded-lg bg-slate-100">
+                                <img :src="item.image" :alt="item.name" referrerpolicy="no-referrer" class="w-12 h-12 object-cover rounded-lg bg-slate-100" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
                                 <div>
                                     <h4 class="text-xs font-bold text-slate-800 line-clamp-1" x-text="item.name"></h4>
                                     <p x-show="item.selectedVariant" class="text-[11px] text-teal-600 font-semibold" x-text="'Varian: ' + item.selectedVariant"></p>
@@ -965,7 +981,7 @@
                             <template x-for="item in cart" :key="item.cartId">
                                 <div class="flex items-center justify-between gap-3 text-xs border-b border-slate-200/60 pb-2 last:border-b-0">
                                     <div class="flex items-center gap-2.5 min-w-0">
-                                        <img :src="item.image" :alt="item.name" class="w-10 h-10 object-cover rounded-lg bg-white border border-slate-100 flex-shrink-0">
+                                        <img :src="item.image" :alt="item.name" referrerpolicy="no-referrer" class="w-10 h-10 object-cover rounded-lg bg-white border border-slate-100 flex-shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
                                         <div class="min-w-0">
                                             <h5 class="font-bold text-slate-800 line-clamp-1" x-text="item.name"></h5>
                                             <p x-show="item.selectedVariant" class="text-[10px] text-teal-600 font-semibold line-clamp-1" x-text="'Varian: ' + item.selectedVariant"></p>
@@ -1342,18 +1358,49 @@
                     }
                 },
 
+                // ADVANCED IMAGE LINK SANITIZER
                 sanitizeImageUrl(rawUrl) {
                     if (!rawUrl) return '';
                     let str = String(rawUrl).trim();
+
+                    // 1. Extract from BBCode [img]...[/img]
+                    const bbMatch = str.match(/\[img\](.*?)\[\/img\]/i);
+                    if (bbMatch && bbMatch[1]) {
+                        str = bbMatch[1].trim();
+                    }
                     
-                    const htmlMatch = str.match(/src=["']([^"']+)["']/i);
-                    if (htmlMatch && htmlMatch[1]) {
-                        str = htmlMatch[1];
+                    // 2. Extract from HTML src="..." or href="..."
+                    const srcMatch = str.match(/src=["']([^"']+)["']/i);
+                    if (srcMatch && srcMatch[1]) {
+                        str = srcMatch[1].trim();
+                    } else {
+                        const hrefMatch = str.match(/href=["']([^"']+)["']/i);
+                        if (hrefMatch && hrefMatch[1] && (hrefMatch[1].includes('i.ibb.co') || hrefMatch[1].includes('i.postimg') || hrefMatch[1].match(/\.(jpg|jpeg|png|webp|gif)/i))) {
+                            str = hrefMatch[1].trim();
+                        }
                     }
 
-                    const driveMatch = str.match(/\/d\/([a-zA-Z0-9_-]+)/);
-                    if (driveMatch && driveMatch[1]) {
+                    // 3. Extract direct ImgBB link if inside text
+                    const ibbMatch = str.match(/(https?:\/\/i\.ibb\.co(?:\.com)?\/[^\s"'<]+)/i);
+                    if (ibbMatch && ibbMatch[1]) {
+                        str = ibbMatch[1];
+                    }
+
+                    // 4. Extract direct Postimg link if inside text
+                    const postimgMatch = str.match(/(https?:\/\/i\.postimg\.cc\/[^\s"'<]+)/i);
+                    if (postimgMatch && postimgMatch[1]) {
+                        str = postimgMatch[1];
+                    }
+
+                    // 5. Google Drive link converter
+                    const driveMatch = str.match(/\/d\/([a-zA-Z0-9_-]+)/) || str.match(/id=([a-zA-Z0-9_-]+)/);
+                    if (driveMatch && driveMatch[1] && str.includes('drive.google')) {
                         str = `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+                    }
+
+                    // 6. Dropbox link converter
+                    if (str.includes('dropbox.com')) {
+                        str = str.replace('dl=0', 'raw=1').replace('www.dropbox.com', 'dl.dropboxusercontent.com');
                     }
 
                     return str;
