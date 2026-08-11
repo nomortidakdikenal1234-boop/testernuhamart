@@ -235,17 +235,44 @@
 
                     try {
                         if (db && this.editProductForm.id) {
-                            const { error } = await db
-                                .from('products')
-                                .update(updatedData)
-                                .eq('id', this.editProductForm.id);
+                            let payload = { ...updatedData };
+                            let error = null;
+
+                            // Dynamic retry loop to strip any missing columns from Supabase payload
+                            for (let attempt = 0; attempt < 5; attempt++) {
+                                const res = await db
+                                    .from('products')
+                                    .update(payload)
+                                    .eq('id', this.editProductForm.id);
+                                error = res.error;
+
+                                if (!error) break;
+
+                                if (error && (error.code === 'PGRST204' || (error.message && error.message.includes('column')))) {
+                                    const colMatch = error.message && error.message.match(/Could not find the '([^']+)' column/i);
+                                    if (colMatch && colMatch[1]) {
+                                        delete payload[colMatch[1]];
+                                    } else {
+                                        if ('variants' in payload) delete payload.variants;
+                                        else if ('stock' in payload) delete payload.stock;
+                                        else if ('weight' in payload) delete payload.weight;
+                                        else break;
+                                    }
+                                } else {
+                                    break;
+                                }
+                            }
 
                             if (error) {
-                                console.warn('Gagal memperbarui di Supabase:', error.message);
+                                console.error('Gagal memperbarui di Supabase:', error);
+                                this.showToast('Gagal update di database: ' + error.message);
+                                return;
                             }
                         }
                     } catch (e) {
-                        console.warn('Gagal update database:', e);
+                        console.error('Gagal update database:', e);
+                        this.showToast('Terjadi kesalahan saat memperbarui database!');
+                        return;
                     }
 
                     const idx = this.products.findIndex(p => String(p.id) === String(this.editProductForm.id));
@@ -584,40 +611,70 @@
 
                     try {
                         if (db) {
-                            const { data, error } = await db
-                                .from('products')
-                                .insert([newProductData])
-                                .select();
+                            let payload = { ...newProductData };
+                            let data = null;
+                            let error = null;
 
-                            if (!error && data && data[0]) {
+                            // Dynamic retry loop to strip any missing columns from Supabase payload
+                            for (let attempt = 0; attempt < 5; attempt++) {
+                                const res = await db
+                                    .from('products')
+                                    .insert([payload])
+                                    .select();
+                                data = res.data;
+                                error = res.error;
+
+                                if (!error) break;
+
+                                if (error && (error.code === 'PGRST204' || (error.message && error.message.includes('column')))) {
+                                    const colMatch = error.message && error.message.match(/Could not find the '([^']+)' column/i);
+                                    if (colMatch && colMatch[1]) {
+                                        delete payload[colMatch[1]];
+                                    } else {
+                                        if ('variants' in payload) delete payload.variants;
+                                        else if ('stock' in payload) delete payload.stock;
+                                        else if ('weight' in payload) delete payload.weight;
+                                        else break;
+                                    }
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            if (error) {
+                                console.error('Error insert Supabase:', error);
+                                this.showToast('Gagal simpan ke database: ' + error.message);
+                                return;
+                            }
+
+                            if (data && data[0]) {
                                 const addedItem = {
                                     ...data[0],
                                     price: Number(data[0].price || newProductData.price),
-                                    weight: Number(data[0].weight || newProductData.weight),
+                                    stock: Number(data[0].stock ?? newProductData.stock),
+                                    weight: (data[0].weight && Number(data[0].weight) > 0) ? Number(data[0].weight) : newProductData.weight,
                                     variants: Array.isArray(data[0].variants) ? data[0].variants : parsedVariants
                                 };
                                 this.products.unshift(addedItem);
                                 this.showToast('Produk berhasil ditambahkan & tersimpan di database!');
                             } else {
-                                const fallbackItem = { id: Date.now(), ...newProductData };
-                                this.products.unshift(fallbackItem);
-                                this.showToast('Produk berhasil ditambahkan!');
+                                this.fetchProducts();
+                                this.showToast('Produk berhasil ditambahkan ke database!');
                             }
                         } else {
-                            const fallbackItem = { id: Date.now(), ...newProductData };
-                            this.products.unshift(fallbackItem);
-                            this.showToast('Produk berhasil ditambahkan!');
+                            this.showToast('Koneksi database tidak tersedia!');
+                            return;
                         }
                     } catch(e) {
-                        const fallbackItem = { id: Date.now(), ...newProductData };
-                        this.products.unshift(fallbackItem);
-                        this.showToast('Produk ditambahkan ke katalog!');
+                        console.error('Exception addProduct:', e);
+                        this.showToast('Terjadi kesalahan: ' + (e.message || 'Gagal menyimpan'));
+                        return;
                     }
 
                     this.newProduct.name = '';
                     this.newProduct.price = '';
                     this.newProduct.stock = 28;
-                    this.newProduct.weight = 250;
+                    this.newProduct.weight = '';
                     this.newProduct.image = '';
                     this.newProduct.quickVariantsInput = '';
                     this.newProduct.variantsList = [{ name: '', image: '' }];
@@ -2050,7 +2107,84 @@
 
     <!-- CHECKOUT MODAL -->
     <div x-show="openCheckoutModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-        <!-- ... existing checkout modal content ... -->
+        <div @click.outside="openCheckoutModal = false" class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-auto">
+            <button @click="openCheckoutModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-extrabold text-slate-900">Formulir Pesanan</h3>
+                    <p class="text-xs text-slate-500">Isi data pemesan untuk kirim ke WhatsApp Admin</p>
+                </div>
+            </div>
+
+            <form @submit.prevent="processWhatsAppCheckout()" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Pemesan / Anak <span class="text-rose-500">*</span></label>
+                    <input type="text" x-model="checkoutForm.nama" required placeholder="Masukkan Nama Lengkap" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Kelas <span class="text-rose-500">*</span></label>
+                        <input type="text" x-model="checkoutForm.kelas" required placeholder="Contoh: 10 IPA 1" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Asrama / Kamar <span class="text-rose-500">*</span></label>
+                        <input type="text" x-model="checkoutForm.asrama" required placeholder="Contoh: Asrama A / K.04" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Metode Pembayaran</label>
+                    <div class="p-3 bg-teal-50/60 border border-teal-200/80 rounded-xl flex items-center justify-between text-xs font-bold text-teal-900">
+                        <span>CASH (Bayar Tunai di Tempat)</span>
+                        <span class="bg-teal-600 text-white text-[10px] px-2 py-0.5 rounded-md">Default</span>
+                    </div>
+                </div>
+
+                <!-- RINGKASAN ITEM PESANAN -->
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-2">
+                    <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Ringkasan Pesanan</h4>
+                    <div class="max-h-32 overflow-y-auto space-y-1.5 pr-1">
+                        <template x-for="item in cart" :key="item.cartId">
+                            <div class="flex items-center justify-between text-xs text-slate-700">
+                                <span class="line-clamp-1 font-medium">
+                                    <span x-text="item.name"></span>
+                                    <span x-show="item.selectedVariant" class="text-teal-600 font-semibold" x-text="' (' + item.selectedVariant + ')'"></span>
+                                    <span class="text-slate-400" x-text="' x' + item.qty"></span>
+                                </span>
+                                <span class="font-bold whitespace-nowrap" x-text="formatRupiah(item.price * item.qty)"></span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="border-t border-slate-200 pt-2 space-y-1">
+                        <div x-show="cartTotalWeight > 0" class="flex justify-between text-xs text-slate-500">
+                            <span>Total Berat:</span>
+                            <span class="font-bold text-slate-700" x-text="cartTotalWeight + ' Gram'"></span>
+                        </div>
+                        <div class="flex justify-between text-sm font-extrabold text-slate-900">
+                            <span>Total Pembayaran:</span>
+                            <span class="text-teal-600" x-text="formatRupiah(cartSubtotal)"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex gap-2">
+                    <button type="button" @click="openCheckoutModal = false" class="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit" class="w-2/3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-md flex items-center justify-center gap-2">
+                        <span>Pesan via WhatsApp</span>
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- MODAL EDIT PRODUK (MODE ADMIN) -->
