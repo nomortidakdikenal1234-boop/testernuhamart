@@ -151,7 +151,7 @@
                     weight: '',
                     image: '',
                     quickVariantsInput: '',
-                    variantsList: [{ name: '', image: '' }]
+                    variantsList: [{ name: '', price: '', image: '' }]
                 },
                 selectedProduct: null,
                 activeVariantChoice: null,
@@ -162,6 +162,115 @@
                     kelas: '',
                     asrama: '',
                     payment: 'cash'
+                },
+
+                reviews: [],
+                newReview: { name: '', rating: 0, comment: '' },
+                toast: { show: false, message: '' },
+
+                openEditProductModal: false,
+                editingProduct: null,
+                editProductForm: {
+                    id: null,
+                    name: '',
+                    category: 'Minuman',
+                    price: '',
+                    stock: 28,
+                    weight: '',
+                    image: '',
+                    quickVariantsInput: '',
+                    variantsList: [{ name: '', price: '', image: '' }]
+                },
+
+                openEditProduct(product) {
+                    this.editingProduct = product;
+                    const vars = Array.isArray(product.variants) 
+                        ? product.variants.map(v => typeof v === 'object' ? { name: v.name || '', price: v.price ?? '', image: v.image || '' } : { name: String(v), price: '', image: '' })
+                        : [];
+                    
+                    this.editProductForm = {
+                        id: product.id,
+                        name: product.name || '',
+                        category: product.category || 'Minuman',
+                        price: product.price || 0,
+                        stock: product.stock ?? 28,
+                        weight: (product.weight && Number(product.weight) > 0) ? product.weight : '',
+                        image: product.image || '',
+                        quickVariantsInput: vars.map(v => v.name).join(', '),
+                        variantsList: vars.length > 0 ? vars : [{ name: '', price: '', image: '' }]
+                    };
+                    this.openEditProductModal = true;
+                },
+
+                getVariantsLocalBackup() {
+                    try {
+                        return JSON.parse(localStorage.getItem('nuha_variants_backup') || '{}');
+                    } catch(e) {
+                        return {};
+                    }
+                },
+
+                saveVariantLocalBackup(id, name, variants) {
+                    try {
+                        const map = this.getVariantsLocalBackup();
+                        if (id) map[String(id)] = variants;
+                        if (name) map[String(name).toLowerCase().trim()] = variants;
+                        localStorage.setItem('nuha_variants_backup', JSON.stringify(map));
+                    } catch(e) {}
+                },
+
+                removeVariantLocalBackup(id, name) {
+                    try {
+                        const map = this.getVariantsLocalBackup();
+                        if (id) delete map[String(id)];
+                        if (name) delete map[String(name).toLowerCase().trim()];
+                        localStorage.setItem('nuha_variants_backup', JSON.stringify(map));
+                    } catch(e) {}
+                },
+
+                addEditVariantRow() {
+                    this.editProductForm.variantsList.push({ name: '', price: '', image: '' });
+                },
+
+                removeEditVariantRow(idx) {
+                    this.editProductForm.variantsList.splice(idx, 1);
+                },
+
+                parseEditQuickVariants() {
+                    if (!this.editProductForm.quickVariantsInput) return;
+                    const names = this.editProductForm.quickVariantsInput.split(',').map(n => n.trim()).filter(n => n);
+                    this.editProductForm.variantsList = names.map(n => {
+                        const existing = this.editProductForm.variantsList.find(v => v.name === n);
+                        return existing ? existing : { name: n, price: '', image: '' };
+                    });
+                },
+
+                getProductsByCategory(catName, limit = null) {
+                    if (!catName) return [];
+                    const items = (this.products || []).filter(p => p.category === catName);
+                    return limit ? items.slice(0, limit) : items;
+                },
+
+                getActiveVariantPrice() {
+                    if (!this.selectedProduct) return 0;
+                    if (this.activeVariantChoice && this.activeVariantChoice.price !== '' && !isNaN(this.activeVariantChoice.price) && Number(this.activeVariantChoice.price) > 0) {
+                        return Number(this.activeVariantChoice.price);
+                    }
+                    return Number(this.selectedProduct.price || 0);
+                },
+
+                getProductMinPrice(product) {
+                    if (!product) return 0;
+                    let basePrice = Number(product.price || 0);
+                    if (Array.isArray(product.variants) && product.variants.length > 0) {
+                        const varPrices = product.variants
+                            .map(v => typeof v === 'object' && v.price !== '' && !isNaN(v.price) && Number(v.price) > 0 ? Number(v.price) : basePrice)
+                            .filter(p => p > 0);
+                        if (varPrices.length > 0) {
+                            return Math.min(...varPrices);
+                        }
+                    }
+                    return basePrice;
                 },
 
                 reviews: [],
@@ -367,11 +476,6 @@
                     });
                 },
 
-                getProductsByCategory(catName) {
-                    if (!catName) return [];
-                    return (this.products || []).filter(p => p.category === catName);
-                },
-
                 toggleShowAllCatalog() {
                     this.showAllCatalogView = !this.showAllCatalogView;
                     if (this.showAllCatalogView) {
@@ -383,12 +487,20 @@
                     this.selectedProduct = product;
                     if (Array.isArray(product.variants) && product.variants.length > 0) {
                         const firstV = product.variants[0];
-                        this.activeVariantChoice = typeof firstV === 'object' ? firstV : { name: firstV, image: '' };
+                        this.activeVariantChoice = typeof firstV === 'object' 
+                            ? { name: firstV.name || '', price: firstV.price ?? '', image: firstV.image || '' }
+                            : { name: String(firstV), price: '', image: '' };
                     } else {
                         this.activeVariantChoice = null;
                     }
                     this.variantModalQty = 1;
                     this.quickViewModal = true;
+                },
+
+                selectVariant(v) {
+                    this.activeVariantChoice = typeof v === 'object' 
+                        ? { name: v.name || '', price: v.price ?? '', image: v.image || '' }
+                        : { name: String(v), price: '', image: '' };
                 },
 
                 selectVariant(v) {
@@ -627,7 +739,7 @@
                 },
 
                 addVariantRow() {
-                    this.newProduct.variantsList.push({ name: '', image: '' });
+                    this.newProduct.variantsList.push({ name: '', price: '', image: '' });
                 },
 
                 removeVariantRow(idx) {
@@ -640,7 +752,7 @@
                     
                     this.newProduct.variantsList = names.map(n => {
                         const existing = this.newProduct.variantsList.find(v => v.name === n);
-                        return existing ? existing : { name: n, image: '' };
+                        return existing ? existing : { name: n, price: '', image: '' };
                     });
                 },
 
@@ -656,6 +768,7 @@
                         .filter(v => v.name && v.name.trim())
                         .map(v => ({
                             name: v.name.trim(),
+                            price: (v.price !== '' && !isNaN(v.price) && Number(v.price) > 0) ? Number(v.price) : '',
                             image: this.sanitizeImageUrl(v.image)
                         }));
 
@@ -688,77 +801,77 @@
                     this.newProduct.weight = '';
                     this.newProduct.image = '';
                     this.newProduct.quickVariantsInput = '';
-                    this.newProduct.variantsList = [{ name: '', image: '' }];
+                    this.newProduct.variantsList = [{ name: '', price: '', image: '' }];
                 },
 
-                async deleteProduct(id) {
-                    if (!confirm('Apakah Anda yakin ingin menghapus produk ini secara PERMANEN dari database?')) return;
+                async updateProduct() {
+                    if (!this.editProductForm.name || !this.editProductForm.price) {
+                        this.showToast('Nama dan harga produk wajib diisi!');
+                        return;
+                    }
 
-                    const previousProducts = [...this.products];
-                    const deletedItem = previousProducts.find(p => p.id === id || String(p.id) === String(id));
-                    this.products = this.products.filter(p => p.id !== id && String(p.id) !== String(id));
-                    this.removeVariantLocalBackup(id, deletedItem?.name);
+                    const cleanedImageUrl = this.sanitizeImageUrl(this.editProductForm.image);
+                    const parsedVariants = this.editProductForm.variantsList
+                        .filter(v => v.name && v.name.trim())
+                        .map(v => ({
+                            name: v.name.trim(),
+                            price: (v.price !== '' && !isNaN(v.price) && Number(v.price) > 0) ? Number(v.price) : '',
+                            image: this.sanitizeImageUrl(v.image)
+                        }));
+
+                    const updatedData = {
+                        name: this.editProductForm.name.trim(),
+                        category: this.editProductForm.category,
+                        price: Number(this.editProductForm.price),
+                        stock: Number(this.editProductForm.stock || 28),
+                        weight: (this.editProductForm.weight && Number(this.editProductForm.weight) > 0) ? Number(this.editProductForm.weight) : null,
+                        image: cleanedImageUrl || 'https://placehold.co/400x400/0d9488/ffffff?text=' + encodeURIComponent(this.editProductForm.name.trim()),
+                        variants: parsedVariants
+                    };
 
                     try {
-                        if (db) {
-                            const { error } = await db.from('products').delete().eq('id', id);
-                            if (error) {
-                                this.products = previousProducts;
-                                this.showToast('Gagal menghapus produk dari database!');
-                                return;
-                            }
+                        if (db && this.editProductForm.id) {
+                            await this.executeSupabaseProductSave(true, updatedData, this.editProductForm.id);
+                            this.showToast('Produk & varian berhasil diperbarui di Supabase!');
+                            await this.fetchProducts();
+                            this.openEditProductModal = false;
+                        } else {
+                            this.showToast('Koneksi Supabase tidak terhubung!');
                         }
-                        this.showToast('Produk berhasil dihapus PERMANEN!');
                     } catch (e) {
-                        this.products = previousProducts;
-                        this.showToast('Terjadi kesalahan saat menghapus produk!');
+                        console.error('Gagal update database:', e);
+                        this.showToast('Gagal simpan ke Supabase: ' + (e.message || 'Terjadi kesalahan'));
                     }
-                },
-
-                async deleteReview(id) {
-                    if (!confirm('Apakah Anda yakin ingin menghapus ulasan ini secara PERMANEN dari database?')) return;
-
-                    const previousReviews = [...this.reviews];
-                    this.reviews = this.reviews.filter(r => r.id !== id && String(r.id) !== String(id));
-
-                    try {
-                        if (db) {
-                            const { error } = await db.from('reviews').delete().eq('id', id);
-                            if (error) {
-                                this.reviews = previousReviews;
-                                this.showToast('Gagal menghapus ulasan dari database!');
-                                return;
-                            }
-                        }
-                        this.showToast('Ulasan berhasil dihapus PERMANEN!');
-                    } catch (e) {
-                        this.reviews = previousReviews;
-                        this.showToast('Terjadi kesalahan saat menghapus ulasan!');
-                    }
-                },
-
-                getModalDisplayImage() {
-                    if (!this.selectedProduct) return '';
-                    if (this.activeVariantChoice && this.activeVariantChoice.image) {
-                        return this.sanitizeImageUrl(this.activeVariantChoice.image);
-                    }
-                    return this.sanitizeImageUrl(this.selectedProduct.image);
                 },
 
                 confirmAddToCartWithVariant() {
                     if (this.selectedProduct) {
                         const variantName = this.activeVariantChoice ? this.activeVariantChoice.name : '';
                         const variantImg = (this.activeVariantChoice && this.activeVariantChoice.image) ? this.activeVariantChoice.image : '';
-                        this.addToCart(this.selectedProduct, variantName, variantImg, this.variantModalQty);
+                        const customPrice = (this.activeVariantChoice && this.activeVariantChoice.price !== '' && !isNaN(this.activeVariantChoice.price) && Number(this.activeVariantChoice.price) > 0) 
+                            ? Number(this.activeVariantChoice.price) 
+                            : null;
+                            
+                        this.addToCart(this.selectedProduct, variantName, variantImg, this.variantModalQty, customPrice);
                         this.quickViewModal = false;
                     }
                 },
 
-                addToCart(product, variantName = '', variantImg = '', quantity = 1) {
+                addToCart(product, variantName = '', variantImg = '', quantity = 1, customPrice = null) {
                     const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
-                    const chosenVariantName = variantName || (hasVariants ? (product.variants[0].name || product.variants[0]) : '');
-                    const chosenImg = variantImg || (hasVariants && product.variants[0].image ? product.variants[0].image : product.image);
-                    const cartId = product.id + '-' + (chosenVariantName || 'default');
+                    const chosenVariantObj = hasVariants ? (typeof product.variants[0] === 'object' ? product.variants[0] : { name: product.variants[0] }) : null;
+                    const chosenVariantName = variantName || (chosenVariantObj ? chosenVariantObj.name : '');
+                    const chosenImg = variantImg || (chosenVariantObj && chosenVariantObj.image ? chosenVariantObj.image : product.image);
+                    
+                    let finalUnitPrice = customPrice;
+                    if (!finalUnitPrice && hasVariants && chosenVariantObj && chosenVariantObj.price && Number(chosenVariantObj.price) > 0) {
+                        finalUnitPrice = Number(chosenVariantObj.price);
+                    }
+                    if (!finalUnitPrice) {
+                        finalUnitPrice = Number(product.price || 0);
+                    }
+
+                    const cartId = product.id + '-' + (chosenVariantName || 'default') + '-' + finalUnitPrice;
                     
                     const existing = this.cart.find(i => i.cartId === cartId);
                     if (existing) {
@@ -766,6 +879,7 @@
                     } else {
                         this.cart.push({ 
                             ...product, 
+                            price: finalUnitPrice,
                             cartId: cartId,
                             selectedVariant: chosenVariantName,
                             image: this.sanitizeImageUrl(chosenImg),
@@ -1351,8 +1465,8 @@
                     <div class="lg:col-span-12 bg-white p-5 rounded-2xl border border-teal-100 space-y-4">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tabel Pengaturan Varian</h4>
-                                <p class="text-[11px] text-slate-500">Isi Nama Varian (misal: Teh, Melon, Leci). Link Foto Varian sifatnya *Opsional*.</p>
+                                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tabel Pengaturan Varian & Harga Specifik</h4>
+                                <p class="text-[11px] text-slate-500">Isi Nama Varian (misal: Teh, Melon) dan Harga khusus varian tersebut (Opsional, jika kosong mengikuti harga utama).</p>
                             </div>
                             <button type="button" @click="addVariantRow()" class="px-3.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors flex items-center gap-1">
                                 + Tambah Baris Varian
@@ -1360,7 +1474,7 @@
                         </div>
 
                         <div class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                            <span class="text-xs font-semibold text-slate-600 whitespace-nowrap">Input Cepat (Pisahkan Koma):</span>
+                            <span class="text-xs font-semibold text-slate-600 whitespace-nowrap">Input Cepat Varian:</span>
                             <input type="text" x-model="newProduct.quickVariantsInput" @input="parseQuickVariants()" placeholder="Contoh: Teh, Melon, Leci, Sirsak, Mangga" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
                         </div>
 
@@ -1371,6 +1485,9 @@
                                     <div class="w-full sm:w-1/3">
                                         <input type="text" x-model="vRow.name" placeholder="Nama Varian (misal: Melon)" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
                                     </div>
+                                    <div class="w-full sm:w-1/4">
+                                        <input type="number" x-model.number="vRow.price" placeholder="Harga Varian (Opsional)" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
+                                    </div>
                                     <div class="w-full sm:flex-1 flex items-center gap-2">
                                         <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional)" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
                                         
@@ -1379,7 +1496,7 @@
                                         </template>
                                     </div>
                                     <button type="button" @click="removeVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 text-xs font-bold" title="Hapus Baris Varian">
-                                        ✕ Hapus
+                                        ✕
                                     </button>
                                 </div>
                             </template>
@@ -1530,8 +1647,9 @@
                         </button>
                     </div>
 
-                    <div x-show="getProductsByCategory(cat.name).length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                        <template x-for="product in getProductsByCategory(cat.name)" :key="product.id">
+                    <!-- MAX 4 PRODUCTS INITIAL VIEW -->
+                    <div x-show="getProductsByCategory(cat.name).length > 0" class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                        <template x-for="product in getProductsByCategory(cat.name, 4)" :key="product.id">
                             <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group">
                                 <div>
                                     <div class="relative aspect-square overflow-hidden bg-slate-100 cursor-pointer" @click="openQuickView(product)">
@@ -1551,9 +1669,12 @@
                                         </div>
                                     </div>
                                     <div class="p-4">
-                                        <h3 @click="openQuickView(product)" class="font-bold text-slate-900 text-sm sm:text-base cursor-pointer hover:text-teal-600 transition-colors line-clamp-2 min-h-[2.5rem]" x-text="product.name"></h3>
-                                        <div class="flex items-center justify-between mt-2">
-                                            <p class="text-teal-600 font-extrabold text-base sm:text-lg" x-text="formatRupiah(product.price)"></p>
+                                        <h3 @click="openQuickView(product)" class="font-bold text-slate-900 text-sm sm:text-base cursor-pointer hover:text-teal-600 transition-colors line-clamp-1" x-text="product.name"></h3>
+                                        <div class="flex items-center justify-between mt-1">
+                                            <p class="text-teal-600 font-extrabold text-sm sm:text-base">
+                                                <span x-text="formatRupiah(getProductMinPrice(product))"></span>
+                                                <span class="text-slate-400 font-normal text-xs">/ pcs</span>
+                                            </p>
                                             <span x-show="product.weight && Number(product.weight) > 0" class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md" x-text="product.weight + ' g'"></span>
                                         </div>
                                     </div>
@@ -1565,8 +1686,8 @@
                                         </button>
                                     </template>
                                     <template x-if="!Array.isArray(product.variants) || product.variants.length === 0">
-                                        <button @click="addToCart(product)" class="w-full py-3 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center gap-2">
-                                            <span>Tambahkan ke Keranjang</span>
+                                        <button @click="addToCart(product)" class="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center">
+                                            Tambahkan ke Keranjang
                                         </button>
                                     </template>
                                 </div>
@@ -1862,21 +1983,24 @@
                             <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight" x-text="selectedProduct.name"></h2>
                             <span x-show="selectedProduct.weight && Number(selectedProduct.weight) > 0" class="text-xs font-extrabold bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-1 rounded-lg" x-text="'Berat: ' + selectedProduct.weight + ' gram'"></span>
                         </div>
-                        <div class="text-2xl sm:text-3xl font-bold text-slate-900 mt-1" x-text="formatRupiah(selectedProduct.price)"></div>
+                        <div class="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 flex items-baseline gap-1">
+                            <span x-text="formatRupiah(getActiveVariantPrice())"></span>
+                            <span class="text-slate-400 font-normal text-sm">/ pcs</span>
+                        </div>
                     </div>
 
                     <div x-show="Array.isArray(selectedProduct.variants) && selectedProduct.variants.length > 0">
                         <div class="flex items-center justify-between mb-2.5">
-                            <label class="block text-sm font-medium text-slate-700">Varian</label>
-                            <span x-show="activeVariantChoice && activeVariantChoice.image" class="text-[11px] text-teal-600 font-bold">✓ Varian memiliki foto khusus</span>
+                            <label class="block text-sm font-medium text-slate-700">Pilih Varian Rasa / Pilihan</label>
+                            <span x-show="activeVariantChoice && activeVariantChoice.price" class="text-[11px] text-teal-600 font-bold" x-text="'Harga varian: ' + formatRupiah(activeVariantChoice.price)"></span>
                         </div>
                         <div class="flex flex-wrap gap-2.5">
-                            <template x-for="v in (selectedProduct.variants || [])" :key="v.name || v">
+                            <template x-for="v in (selectedProduct.variants || [])" :key="typeof v === 'object' ? v.name : v">
                                 <button type="button" @click="selectVariant(v)"
-                                        :class="(activeVariantChoice && (activeVariantChoice.name === (v.name || v))) ? 'border-2 border-teal-500 text-slate-900 font-bold bg-teal-50/20' : 'border border-slate-200 text-slate-800 hover:border-slate-300 bg-white'"
-                                        class="px-5 py-2.5 rounded-xl text-sm transition-all shadow-2xs min-w-[70px] text-center flex items-center gap-1.5">
-                                    <span x-text="v.name || v"></span>
-                                    <span x-show="v.image" class="w-2 h-2 rounded-full bg-teal-500" title="Memiliki foto khusus"></span>
+                                        :class="(activeVariantChoice && (activeVariantChoice.name === (typeof v === 'object' ? v.name : v))) ? 'border-2 border-teal-500 text-slate-900 font-bold bg-teal-50/30 shadow-xs' : 'border border-slate-200 text-slate-800 hover:border-slate-300 bg-white'"
+                                        class="px-4 py-2 rounded-xl text-sm transition-all text-center flex flex-col items-center justify-center min-w-[80px]">
+                                    <span x-text="typeof v === 'object' ? v.name : v"></span>
+                                    <span x-show="typeof v === 'object' && v.price" class="text-[10px] text-teal-600 font-bold" x-text="formatRupiah(v.price)"></span>
                                 </button>
                             </template>
                         </div>
@@ -2260,8 +2384,8 @@
                 <div class="lg:col-span-12 bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tabel Varian Produk</h4>
-                            <p class="text-[11px] text-slate-500">Atur pilihan rasa atau varian produk ini.</p>
+                            <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tabel Varian Produk & Harga</h4>
+                            <p class="text-[11px] text-slate-500">Atur pilihan rasa atau varian produk beserta harganya (Opsional).</p>
                         </div>
                         <button type="button" @click="addEditVariantRow()" class="px-3 py-1.5 bg-white hover:bg-teal-50 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors">
                             + Tambah Varian
@@ -2278,6 +2402,7 @@
                             <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
                                 <span class="text-xs font-bold text-slate-400 w-5 text-center" x-text="vIdx + 1"></span>
                                 <input type="text" x-model="vRow.name" placeholder="Nama Varian" class="w-1/3 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                                <input type="number" x-model.number="vRow.price" placeholder="Harga Varian (Opsional)" class="w-1/4 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
                                 <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional)" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
                                 <button type="button" @click="removeEditVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 text-xs font-bold">
                                     ✕
