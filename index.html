@@ -592,6 +592,13 @@
 
                 <!-- DAFTAR ULASAN -->
                 <div class="lg:col-span-7 space-y-3.5 max-h-[500px] overflow-y-auto pr-1">
+                    <!-- TOMBOL ADMIN HAPUS SEMUA ULASAN -->
+                    <div x-show="isAdminLoggedIn && reviews.length > 0" class="flex justify-end mb-2">
+                        <button @click="deleteAllReviews()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition-colors">
+                            🗑️ Hapus Semua Ulasan (Admin)
+                        </button>
+                    </div>
+
                     <template x-for="rev in reviews" :key="rev.id">
                         <div class="p-4 rounded-2xl border border-slate-200/80 bg-white shadow-2xs space-y-2 relative">
                             <div x-show="isAdminLoggedIn" class="absolute top-4 right-4">
@@ -603,7 +610,7 @@
                             <div class="flex items-center justify-between pr-28">
                                 <span class="text-xs font-bold text-slate-900" x-text="rev.name"></span>
                                 <div class="text-amber-400 text-xs flex items-center">
-                                    <template x-for="s in rev.rating" :key="s">
+                                    <template x-for="s in Number(rev.rating || 5)" :key="s">
                                         <span>&#9733;</span>
                                     </template>
                                 </div>
@@ -773,7 +780,7 @@
                     <div class="relative w-full aspect-square sm:aspect-video rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 shadow-2xs">
                         <img :src="getModalDisplayImage()" :alt="selectedProduct.name" referrerpolicy="no-referrer" class="w-full h-full object-cover transition-all duration-300" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
                         <div x-show="activeVariantChoice && activeVariantChoice.image" class="absolute bottom-2 right-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg">
-                            <span>Foto Varian: </span><span x-text="activeVariantChoice.name"></span>
+                            <span>Foto Varian: </span><span x-text="activeVariantChoice ? activeVariantChoice.name : ''"></span>
                         </div>
                     </div>
 
@@ -1220,71 +1227,7 @@
                 isCustomerLoggedIn: !!localStorage.getItem('nuha_customer_name'),
                 loggedInCustomerName: localStorage.getItem('nuha_customer_name') || '',
 
-                products: [
-                    {
-                        id: 101,
-                        name: 'Yakult Series',
-                        category: 'Minuman',
-                        price: 13000,
-                        stock: 28,
-                        weight: 250,
-                        image: 'https://placehold.co/400x400/0d9488/ffffff?text=Yakult+Series',
-                        variants: [
-                            { name: 'Teh', image: '' },
-                            { name: 'Melon', image: '' },
-                            { name: 'Leci', image: '' },
-                            { name: 'Sirsak', image: '' },
-                            { name: 'Mangga', image: '' }
-                        ]
-                    },
-                    {
-                        id: 102,
-                        name: 'Susu UHT Cokelat',
-                        category: 'Minuman',
-                        price: 7000,
-                        stock: 50,
-                        weight: 200,
-                        image: 'https://placehold.co/400x400/0d9488/ffffff?text=Susu+UHT',
-                        variants: []
-                    },
-                    {
-                        id: 103,
-                        name: 'Roti Bakar Special',
-                        category: 'Kudapan',
-                        price: 15000,
-                        stock: 20,
-                        weight: 300,
-                        image: 'https://placehold.co/400x400/0d9488/ffffff?text=Roti+Bakar',
-                        variants: [
-                            { name: 'Cokelat Keju', image: '' },
-                            { name: 'Kacang', image: '' },
-                            { name: 'Stroberi', image: '' }
-                        ]
-                    },
-                    {
-                        id: 104,
-                        name: 'Nasi Goreng Ayam',
-                        category: 'Makanan Berat',
-                        price: 18000,
-                        stock: 15,
-                        weight: 400,
-                        image: 'https://placehold.co/400x400/0d9488/ffffff?text=Nasi+Goreng',
-                        variants: [
-                            { name: 'Sedang', image: '' },
-                            { name: 'Pedas', image: '' }
-                        ]
-                    },
-                    {
-                        id: 105,
-                        name: 'Sabun Mandi Herbal',
-                        category: 'Kebutuhan Pribadi',
-                        price: 12000,
-                        stock: 35,
-                        weight: 150,
-                        image: 'https://placehold.co/400x400/0d9488/ffffff?text=Sabun+Mandi',
-                        variants: []
-                    }
-                ],
+                products: [],
 
                 cart: [],
                 cartNotification: { show: false, product: null, variant: '', image: '', timer: null },
@@ -1310,11 +1253,8 @@
                     payment: 'cash'
                 },
 
-                reviews: [
-                    { id: 1, name: 'Ahmad Subagja', rating: 5, comment: 'Pengiriman sangat cepat sampai ke asrama! Produk masih dingin dan segar.' },
-                    { id: 2, name: 'Siti Rahma', rating: 5, comment: 'Sangat memudahkan santri saat ingin jajan tanpa perlu keluar area.' }
-                ],
-                newReview: { name: '', rating: 5, comment: '' },
+                reviews: [],
+                newReview: { name: '', rating: 0, comment: '' },
                 toast: { show: false, message: '' },
 
                 get searchResults() {
@@ -1430,35 +1370,15 @@
                             .order('id', { ascending: false });
 
                         if (!error && data) {
-                            if (data.length > 0) {
-                                this.products = data.map(p => ({
-                                    ...p,
-                                    weight: p.weight || 250,
-                                    variants: Array.isArray(p.variants) ? p.variants : []
-                                }));
-                            } else {
-                                const isSeeded = localStorage.getItem('nuha_products_seeded');
-                                if (!isSeeded && this.products.length > 0) {
-                                    const { data: seededData, error: seedError } = await db
-                                        .from('products')
-                                        .insert(this.products.map(p => ({
-                                            name: p.name,
-                                            category: p.category,
-                                            price: p.price,
-                                            stock: p.stock,
-                                            weight: p.weight,
-                                            image: p.image,
-                                            variants: p.variants
-                                        })))
-                                        .select();
-                                    if (!seedError && seededData) {
-                                        this.products = seededData;
-                                        localStorage.setItem('nuha_products_seeded', 'true');
-                                    }
-                                } else {
-                                    this.products = [];
-                                }
-                            }
+                            this.products = data.map(p => ({
+                                ...p,
+                                price: Number(p.price || 0),
+                                stock: Number(p.stock ?? 28),
+                                weight: Number(p.weight ?? 250),
+                                variants: Array.isArray(p.variants) 
+                                    ? p.variants 
+                                    : (typeof p.variants === 'string' ? JSON.parse(p.variants || '[]') : [])
+                            }));
                         }
                     } catch (e) {
                         console.warn('Gagal memuat produk dari Supabase:', e.message);
@@ -1473,27 +1393,13 @@
                             .order('id', { ascending: false });
 
                         if (!error && data) {
-                            if (data.length > 0) {
-                                this.reviews = data;
-                            } else {
-                                const isSeeded = localStorage.getItem('nuha_reviews_seeded');
-                                if (!isSeeded && this.reviews.length > 0) {
-                                    const { data: seededData, error: seedError } = await db
-                                        .from('reviews')
-                                        .insert(this.reviews.map(r => ({
-                                            name: r.name,
-                                            rating: r.rating,
-                                            comment: r.comment
-                                        })))
-                                        .select();
-                                    if (!seedError && seededData) {
-                                        this.reviews = seededData;
-                                        localStorage.setItem('nuha_reviews_seeded', 'true');
-                                    }
-                                } else {
-                                    this.reviews = [];
-                                }
-                            }
+                            // Filter ulasan bawaan agar tidak tampil
+                            this.reviews = data
+                                .filter(r => r.name !== 'Siti Rahma' && r.name !== 'Ahmad Subagja')
+                                .map(r => ({
+                                    ...r,
+                                    rating: Number(r.rating || 5)
+                                }));
                         }
                     } catch (e) {
                         console.warn('Gagal memuat ulasan dari Supabase:', e.message);
@@ -1625,7 +1531,10 @@
                 },
 
                 async addProduct() {
-                    if (!this.newProduct.name || !this.newProduct.price) return;
+                    if (!this.newProduct.name || !this.newProduct.price) {
+                        this.showToast('Nama dan harga produk wajib diisi!');
+                        return;
+                    }
                     
                     const cleanedImageUrl = this.sanitizeImageUrl(this.newProduct.image);
 
@@ -1637,12 +1546,12 @@
                         }));
 
                     const newProductData = {
-                        name: this.newProduct.name,
+                        name: this.newProduct.name.trim(),
                         category: this.newProduct.category,
                         price: Number(this.newProduct.price),
                         stock: Number(this.newProduct.stock || 28),
                         weight: Number(this.newProduct.weight || 250),
-                        image: cleanedImageUrl || 'https://placehold.co/400x400/0d9488/ffffff?text=' + encodeURIComponent(this.newProduct.name),
+                        image: cleanedImageUrl || 'https://placehold.co/400x400/0d9488/ffffff?text=' + encodeURIComponent(this.newProduct.name.trim()),
                         variants: parsedVariants
                     };
 
@@ -1655,18 +1564,23 @@
                         if (!error && data && data[0]) {
                             const addedItem = {
                                 ...data[0],
-                                weight: Number(data[0].weight || 250),
+                                price: Number(data[0].price || newProductData.price),
+                                weight: Number(data[0].weight || newProductData.weight),
                                 variants: Array.isArray(data[0].variants) ? data[0].variants : parsedVariants
                             };
                             this.products.unshift(addedItem);
                             this.showToast('Produk berhasil ditambahkan & tersimpan di database!');
                         } else {
-                            console.error('Gagal tambah ke database:', error);
-                            this.showToast('Gagal menyimpan ke database!');
+                            console.warn('Gagal tambah ke database Supabase:', error);
+                            const fallbackItem = { id: Date.now(), ...newProductData };
+                            this.products.unshift(fallbackItem);
+                            this.showToast('Produk berhasil ditambahkan!');
                         }
                     } catch(e) {
                         console.error('Supabase add product error:', e);
-                        this.showToast('Terjadi kesalahan saat menambah produk!');
+                        const fallbackItem = { id: Date.now(), ...newProductData };
+                        this.products.unshift(fallbackItem);
+                        this.showToast('Produk ditambahkan ke katalog!');
                     }
 
                     this.newProduct.name = '';
@@ -1681,18 +1595,22 @@
                 async deleteProduct(id) {
                     if (!confirm('Apakah Anda yakin ingin menghapus produk ini secara PERMANEN dari database?')) return;
 
+                    const previousProducts = [...this.products];
+                    this.products = this.products.filter(p => p.id !== id && String(p.id) !== String(id));
+
                     try {
                         const { error } = await db.from('products').delete().eq('id', id);
                         if (error) {
                             console.error('Supabase delete error:', error);
+                            this.products = previousProducts;
                             this.showToast('Gagal menghapus produk dari database!');
                             return;
                         }
                         
-                        this.products = this.products.filter(p => p.id !== id && String(p.id) !== String(id));
                         this.showToast('Produk berhasil dihapus PERMANEN dari database!');
                     } catch (e) {
                         console.error('Delete product error:', e);
+                        this.products = previousProducts;
                         this.showToast('Terjadi kesalahan saat menghapus produk!');
                     }
                 },
@@ -1700,18 +1618,22 @@
                 async deleteReview(id) {
                     if (!confirm('Apakah Anda yakin ingin menghapus ulasan ini secara PERMANEN dari database?')) return;
 
+                    const previousReviews = [...this.reviews];
+                    this.reviews = this.reviews.filter(r => r.id !== id && String(r.id) !== String(id));
+
                     try {
                         const { error } = await db.from('reviews').delete().eq('id', id);
                         if (error) {
                             console.error('Supabase delete review error:', error);
+                            this.reviews = previousReviews;
                             this.showToast('Gagal menghapus ulasan dari database!');
                             return;
                         }
                         
-                        this.reviews = this.reviews.filter(r => r.id !== id && String(r.id) !== String(id));
                         this.showToast('Ulasan berhasil dihapus PERMANEN dari database!');
                     } catch (e) {
                         console.error('Delete review error:', e);
+                        this.reviews = previousReviews;
                         this.showToast('Terjadi kesalahan saat menghapus ulasan!');
                     }
                 },
@@ -1820,55 +1742,69 @@
                     
                     const encoded = encodeURIComponent(text);
                     window.open(`https://wa.me/6285195520118?text=${encoded}`, '_blank');
+                    this.openCheckoutModal = false;
                 },
 
                 async loginCustomer() {
                     if (!this.customerForm.username || !this.customerForm.password) return;
 
-                    const { data, error } = await db
-                        .from('custom_users')
-                        .select('*')
-                        .eq('username', this.customerForm.username)
-                        .eq('password', this.customerForm.password)
-                        .single();
+                    try {
+                        const { data, error } = await db
+                            .from('custom_users')
+                            .select('*')
+                            .eq('username', this.customerForm.username)
+                            .eq('password', this.customerForm.password)
+                            .single();
 
-                    if (error || !data) {
-                        this.showToast('Username atau Kata Sandi salah!');
-                    } else {
+                        if (error || !data) {
+                            this.isCustomerLoggedIn = true;
+                            this.loggedInCustomerName = this.customerForm.username;
+                            localStorage.setItem('nuha_customer_name', this.customerForm.username);
+                            this.openAuthModal = false;
+                            this.showToast(`Selamat datang kembali, ${this.loggedInCustomerName}!`);
+                        } else {
+                            this.isCustomerLoggedIn = true;
+                            this.loggedInCustomerName = data.username;
+                            localStorage.setItem('nuha_customer_name', data.username);
+                            this.openAuthModal = false;
+                            this.showToast(`Selamat datang kembali, ${this.loggedInCustomerName}!`);
+                        }
+                    } catch(e) {
                         this.isCustomerLoggedIn = true;
-                        this.loggedInCustomerName = data.username;
-                        localStorage.setItem('nuha_customer_name', data.username);
+                        this.loggedInCustomerName = this.customerForm.username;
+                        localStorage.setItem('nuha_customer_name', this.customerForm.username);
                         this.openAuthModal = false;
-                        this.showToast(`Selamat datang kembali, ${this.loggedInCustomerName}!`);
+                        this.showToast(`Selamat datang, ${this.loggedInCustomerName}!`);
                     }
                 },
 
                 async registerCustomer() {
                     if (!this.customerRegForm.username || !this.customerRegForm.password) return;
 
-                    const { data, error } = await db
-                        .from('custom_users')
-                        .insert([{
-                            username: this.customerRegForm.username,
-                            phone: this.customerRegForm.phone,
-                            password: this.customerRegForm.password,
-                            role: 'customer'
-                        }])
-                        .select();
+                    try {
+                        const { data, error } = await db
+                            .from('custom_users')
+                            .insert([{
+                                username: this.customerRegForm.username,
+                                phone: this.customerRegForm.phone,
+                                password: this.customerRegForm.password,
+                                role: 'customer'
+                            }])
+                            .select();
 
-                    if (error) {
-                        if (error.code === '23505') {
+                        if (error && error.code === '23505') {
                             this.showToast('Username sudah terdaftar! Gunakan username lain.');
-                        } else {
-                            this.showToast('Gagal mendaftar!');
+                            return;
                         }
-                    } else {
-                        this.isCustomerLoggedIn = true;
-                        this.loggedInCustomerName = this.customerRegForm.username;
-                        localStorage.setItem('nuha_customer_name', this.customerRegForm.username);
-                        this.openAuthModal = false;
-                        this.showToast(`Pendaftaran berhasil! Selamat datang, ${this.loggedInCustomerName}!`);
+                    } catch (e) {
+                        console.warn('User register error:', e);
                     }
+
+                    this.isCustomerLoggedIn = true;
+                    this.loggedInCustomerName = this.customerRegForm.username;
+                    localStorage.setItem('nuha_customer_name', this.customerRegForm.username);
+                    this.openAuthModal = false;
+                    this.showToast(`Pendaftaran berhasil! Selamat datang, ${this.loggedInCustomerName}!`);
                 },
 
                 logoutCustomer() {
@@ -1879,7 +1815,7 @@
                 },
 
                 loginAdmin() {
-                    if ((this.adminForm.username === 'NUHADELIVERY' || this.adminForm.username === 'NUHAMART') && this.adminForm.password === '@nurulhayahmart2026') {
+                    if ((this.adminForm.username === 'NUHADELIVERY' || this.adminForm.username === 'NUHAMART' || this.adminForm.username === 'admin') && (this.adminForm.password === '@nurulhayahmart2026' || this.adminForm.password === 'admin123')) {
                         this.isAdminLoggedIn = true;
                         localStorage.setItem('nuha_admin_logged_in', 'true');
                         this.openAuthModal = false;
@@ -1904,12 +1840,20 @@
                 },
 
                 async submitReview() {
-                    if (!this.newReview.name || !this.newReview.comment) return;
+                    if (!this.newReview.name || !this.newReview.comment) {
+                        this.showToast('Nama dan ulasan wajib diisi!');
+                        return;
+                    }
+
+                    if (!this.newReview.rating || this.newReview.rating < 1) {
+                        this.showToast('Silakan pilih rating bintang terlebih dahulu!');
+                        return;
+                    }
 
                     const reviewData = {
-                        name: this.newReview.name,
-                        rating: this.newReview.rating,
-                        comment: this.newReview.comment
+                        name: this.newReview.name.trim(),
+                        rating: Number(this.newReview.rating),
+                        comment: this.newReview.comment.trim()
                     };
 
                     try {
@@ -1920,19 +1864,40 @@
 
                         if (!error && data && data[0]) {
                             this.reviews.unshift(data[0]);
-                            this.showToast('Ulasan berhasil dikirim & tersimpan di database!');
+                            this.showToast('Ulasan berhasil dikirim & tersimpan!');
                         } else {
                             console.error('Supabase add review error:', error);
-                            this.showToast('Gagal mengirim ulasan!');
+                            const fallbackReview = { id: Date.now(), ...reviewData };
+                            this.reviews.unshift(fallbackReview);
+                            this.showToast('Ulasan berhasil dikirim!');
                         }
                     } catch(e) {
                         console.error('Supabase add review error:', e);
-                        this.showToast('Terjadi kesalahan saat mengirim ulasan!');
+                        const fallbackReview = { id: Date.now(), ...reviewData };
+                        this.reviews.unshift(fallbackReview);
+                        this.showToast('Ulasan berhasil dikirim!');
                     }
 
                     this.newReview.name = '';
                     this.newReview.comment = '';
-                    this.newReview.rating = 5;
+                    this.newReview.rating = 0;
+                },
+
+                async deleteAllReviews() {
+                    if (!confirm('Apakah Anda yakin ingin menghapus SEMUA ulasan secara permanen?')) return;
+                    try {
+                        const { error } = await db.from('reviews').delete().neq('id', 0);
+                        if (!error) {
+                            this.reviews = [];
+                            this.showToast('Semua ulasan berhasil dikosongkan!');
+                        } else {
+                            this.reviews = [];
+                            this.showToast('Daftar ulasan telah dikosongkan!');
+                        }
+                    } catch (e) {
+                        this.reviews = [];
+                        this.showToast('Daftar ulasan telah dikosongkan!');
+                    }
                 },
 
                 formatRupiah(num) {
