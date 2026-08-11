@@ -273,6 +273,41 @@
                     return basePrice;
                 },
 
+                getModalDisplayImage() {
+                    if (this.activeVariantChoice && this.activeVariantChoice.image) {
+                        return this.sanitizeImageUrl(this.activeVariantChoice.image);
+                    }
+                    return this.selectedProduct ? this.sanitizeImageUrl(this.selectedProduct.image) : '';
+                },
+
+                async deleteProduct(id) {
+                    if (!confirm('Apakah Anda yakin ingin menghapus produk ini?')) return;
+                    try {
+                        if (db) {
+                            await db.from('products').delete().eq('id', id);
+                        }
+                        this.removeVariantLocalBackup(id, null);
+                        this.products = this.products.filter(p => p.id !== id);
+                        this.showToast('Produk berhasil dihapus!');
+                    } catch(e) {
+                        console.error('Gagal menghapus produk:', e);
+                        this.showToast('Gagal menghapus produk!');
+                    }
+                },
+
+                async deleteReview(id) {
+                    if (!confirm('Apakah Anda yakin ingin menghapus ulasan ini?')) return;
+                    try {
+                        if (db) {
+                            await db.from('reviews').delete().eq('id', id);
+                        }
+                        this.reviews = this.reviews.filter(r => r.id !== id);
+                        this.showToast('Ulasan berhasil dihapus!');
+                    } catch(e) {
+                        this.showToast('Gagal menghapus ulasan!');
+                    }
+                },
+
                 reviews: [],
                 newReview: { name: '', rating: 0, comment: '' },
                 toast: { show: false, message: '' },
@@ -1992,7 +2027,7 @@
                     <div x-show="Array.isArray(selectedProduct.variants) && selectedProduct.variants.length > 0">
                         <div class="flex items-center justify-between mb-2.5">
                             <label class="block text-sm font-medium text-slate-700">Pilih Varian Rasa / Pilihan</label>
-                            <span x-show="activeVariantChoice && activeVariantChoice.price" class="text-[11px] text-teal-600 font-bold" x-text="'Harga varian: ' + formatRupiah(activeVariantChoice.price)"></span>
+                            <span x-show="activeVariantChoice && activeVariantChoice.price" class="text-[11px] text-teal-600 font-bold" x-text="'Harga varian: ' + formatRupiah(activeVariantChoice ? activeVariantChoice.price : 0)"></span>
                         </div>
                         <div class="flex flex-wrap gap-2.5">
                             <template x-for="v in (selectedProduct.variants || [])" :key="typeof v === 'object' ? v.name : v">
