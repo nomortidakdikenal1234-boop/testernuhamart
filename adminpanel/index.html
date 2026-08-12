@@ -471,31 +471,31 @@
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
             
             <!-- STATS OVERVIEW -->
-            <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Produk</span>
-                    <span class="text-2xl font-black text-slate-900" x-text="products.length"></span>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                <div class="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs min-w-0">
+                    <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1 truncate">Total Produk</span>
+                    <span class="text-xl sm:text-2xl font-black text-slate-900" x-text="products.length"></span>
                 </div>
                 <template x-for="cat in categories" :key="cat">
-                    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1 line-clamp-1" x-text="cat"></span>
-                        <span class="text-2xl font-black text-teal-600" x-text="getCategoryCount(cat)"></span>
+                    <div class="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs min-w-0">
+                        <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1 truncate" x-text="cat"></span>
+                        <span class="text-xl sm:text-2xl font-black text-teal-600" x-text="getCategoryCount(cat)"></span>
                     </div>
                 </template>
             </div>
 
             <!-- TAB NAVIGATION -->
-            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div class="flex gap-2">
-                    <button @click="activeTab = 'products'" :class="activeTab === 'products' ? 'bg-teal-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 pb-3 gap-3">
+                <div class="flex flex-wrap gap-2">
+                    <button @click="activeTab = 'products'" :class="activeTab === 'products' ? 'bg-teal-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all">
                         Daftar Produk (<span x-text="filteredProducts.length"></span>)
                     </button>
-                    <button @click="activeTab = 'add'" :class="activeTab === 'add' ? 'bg-teal-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5">
+                    <button @click="activeTab = 'add'" :class="activeTab === 'add' ? 'bg-teal-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5">
                         <span>+ Tambah Produk Baru</span>
                     </button>
                 </div>
 
-                <button @click="fetchProducts()" class="text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-xl transition-colors flex items-center gap-1">
+                <button @click="fetchProducts()" class="self-end sm:self-auto text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-xl transition-colors flex items-center gap-1">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     <span>Refresh</span>
                 </button>
@@ -575,19 +575,19 @@
             </div>
 
             <!-- TAB 2: FORM TAMBAH PRODUK BARU -->
-            <div x-show="activeTab === 'add'" class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-2xs space-y-6">
+            <div x-show="activeTab === 'add'" class="bg-white rounded-3xl p-5 sm:p-8 border border-slate-200/80 shadow-2xs space-y-6">
                 <div class="border-b border-slate-100 pb-4">
                     <h3 class="text-lg font-black text-slate-900">Form Tambah Produk Baru</h3>
                     <p class="text-xs text-slate-500">Isi semua detail produk untuk ditambahkan langsung ke database Supabase.</p>
                 </div>
 
                 <form @submit.prevent="addProduct()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
-                    <div class="lg:col-span-4">
+                    <div class="col-span-1 sm:col-span-2 lg:col-span-4">
                         <label class="block text-xs font-bold text-slate-700 mb-1">Nama Produk <span class="text-rose-500">*</span></label>
                         <input type="text" x-model="newProduct.name" required placeholder="Contoh: Yakult Series" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                     </div>
 
-                    <div class="lg:col-span-3">
+                    <div class="col-span-1 sm:col-span-1 lg:col-span-3">
                         <label class="block text-xs font-bold text-slate-700 mb-1">Kategori <span class="text-rose-500">*</span></label>
                         <select x-model="newProduct.category" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                             <template x-for="cat in categories" :key="cat">
@@ -596,28 +596,28 @@
                         </select>
                     </div>
 
-                    <div class="lg:col-span-3">
+                    <div class="col-span-1 sm:col-span-1 lg:col-span-3">
                         <label class="block text-xs font-bold text-slate-700 mb-1">Harga Utama (Rp) <span class="text-rose-500">*</span></label>
                         <input type="number" x-model.number="newProduct.price" required placeholder="13000" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                     </div>
 
-                    <div class="lg:col-span-2">
+                    <div class="col-span-1 sm:col-span-1 lg:col-span-2">
                         <label class="block text-xs font-bold text-slate-700 mb-1">Jumlah Stok <span class="text-rose-500">*</span></label>
                         <input type="number" x-model.number="newProduct.stock" required placeholder="28" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                     </div>
 
-                    <div class="lg:col-span-4">
+                    <div class="col-span-1 sm:col-span-1 lg:col-span-4">
                         <label class="block text-xs font-bold text-slate-700 mb-1">Berat Produk (Gram) <span class="text-slate-400 font-normal">(Opsional)</span></label>
                         <input type="number" x-model.number="newProduct.weight" placeholder="Contoh: 250" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                     </div>
 
-                    <div class="lg:col-span-8">
+                    <div class="col-span-full lg:col-span-8">
                         <label class="block text-xs font-bold text-slate-700 mb-1">URL / Kode Link Gambar Utama</label>
                         <input type="text" x-model="newProduct.image" placeholder="Tempel URL ImgBB, Postimages, Google Drive, atau Kode HTML Img" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                     </div>
 
                     <!-- PREVIEW FOTO UTAMA -->
-                    <div x-show="newProduct.image.trim()" class="lg:col-span-12 flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                    <div x-show="newProduct.image.trim()" class="col-span-full flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
                         <img :src="sanitizeImageUrl(newProduct.image)" referrerpolicy="no-referrer" class="w-14 h-14 object-cover rounded-xl bg-white border border-slate-200" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Error';">
                         <div class="text-xs">
                             <span class="font-bold text-slate-800 block">Pratinjau Foto Utama</span>
@@ -626,51 +626,49 @@
                     </div>
 
                     <!-- VARIAN MANAGEMENT -->
-                    <div class="lg:col-span-12 bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4 mt-2">
-                        <div class="flex items-center justify-between">
+                    <div class="col-span-full bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-4 mt-2">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
                                 <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Pengaturan Varian / Rasa (Opsional)</h4>
                                 <p class="text-[11px] text-slate-500">Tambahkan varian produk seperti pilihan rasa, ukuran, atau aroma.</p>
                             </div>
-                            <button type="button" @click="addVariantRow()" class="px-3.5 py-1.5 bg-white hover:bg-teal-50 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors">
+                            <button type="button" @click="addVariantRow()" class="self-start sm:self-auto px-3.5 py-1.5 bg-white hover:bg-teal-50 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors">
                                 + Tambah Baris Varian
                             </button>
                         </div>
 
-                        <div class="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-200">
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-200">
                             <span class="text-xs font-semibold text-slate-600 whitespace-nowrap">Input Cepat:</span>
                             <input type="text" x-model="newProduct.quickVariantsInput" @input="parseQuickVariants()" placeholder="Ketik dipisah koma, contoh: Teh, Melon, Leci, Sirsak, Mangga" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
                         </div>
 
                         <div class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
                             <template x-for="(vRow, vIdx) in newProduct.variantsList" :key="vIdx">
-                                <div class="flex flex-col sm:flex-row items-center gap-2.5 bg-white p-2.5 rounded-xl border border-slate-200">
-                                    <span class="text-xs font-bold text-slate-400 w-6 text-center" x-text="vIdx + 1"></span>
-                                    <div class="w-full sm:w-1/3">
-                                        <input type="text" x-model="vRow.name" placeholder="Nama Varian (misal: Melon)" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-200">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold text-slate-400 w-5 text-center" x-text="vIdx + 1"></span>
+                                        <input type="text" x-model="vRow.name" placeholder="Nama Varian (misal: Melon)" class="flex-1 sm:w-36 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
                                     </div>
-                                    <div class="w-full sm:w-1/4">
-                                        <input type="number" x-model.number="vRow.price" placeholder="Harga Khusus (Opsional)" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
-                                    </div>
-                                    <div class="w-full sm:flex-1 flex items-center gap-2">
-                                        <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional)" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                                    <div class="flex items-center gap-2 flex-1">
+                                        <input type="number" x-model.number="vRow.price" placeholder="Harga Khusus (Opsional)" class="w-1/2 sm:w-28 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                                        <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional)" class="w-1/2 sm:flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
                                         <template x-if="vRow.image && vRow.image.trim()">
                                             <img :src="sanitizeImageUrl(vRow.image)" referrerpolicy="no-referrer" class="w-8 h-8 object-cover rounded-lg bg-slate-100 border border-slate-200 flex-shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Error';">
                                         </template>
+                                        <button type="button" @click="removeVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 text-xs font-bold">
+                                            ✕
+                                        </button>
                                     </div>
-                                    <button type="button" @click="removeVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 text-xs font-bold">
-                                        ✕
-                                    </button>
                                 </div>
                             </template>
                         </div>
                     </div>
 
-                    <div class="lg:col-span-12 flex justify-end gap-3 pt-4 border-t border-slate-100">
-                        <button type="button" @click="resetNewProductForm(); activeTab = 'products'" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
+                    <div class="col-span-full flex flex-col-reverse sm:flex-row justify-end gap-2.5 pt-4 border-t border-slate-100">
+                        <button type="button" @click="resetNewProductForm(); activeTab = 'products'" class="w-full sm:w-auto px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
                             Batal
                         </button>
-                        <button type="submit" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-md">
+                        <button type="submit" class="w-full sm:w-auto px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-md">
                             Simpan Produk.
                         </button>
                     </div>
@@ -680,7 +678,7 @@
 
         <!-- FOOTER -->
         <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400">
-            &copy; 2026 Nuha Delivery Admin Panel. Dikelola oleh Unit Usaha dan Ekonomi Nurul Hayah.
+            &copy; 2026 Nuha Delivery Panel. Dikelola oleh Unit Usaha dan Ekonomi Nurul Hayah.
         </footer>
     </div>
 
@@ -695,12 +693,12 @@
             <p class="text-xs text-slate-500 mb-6">Ubah data produk di bawah ini dan klik simpan untuk memperbarui database.</p>
 
             <form @submit.prevent="updateProduct()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
-                <div class="lg:col-span-6">
+                <div class="col-span-1 sm:col-span-2 lg:col-span-6">
                     <label class="block text-xs font-bold text-slate-700 mb-1">Nama Produk</label>
                     <input type="text" x-model="editForm.name" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                 </div>
 
-                <div class="lg:col-span-6">
+                <div class="col-span-1 sm:col-span-2 lg:col-span-6">
                     <label class="block text-xs font-bold text-slate-700 mb-1">Kategori</label>
                     <select x-model="editForm.category" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                         <template x-for="cat in categories" :key="cat">
@@ -709,27 +707,27 @@
                     </select>
                 </div>
 
-                <div class="lg:col-span-4">
+                <div class="col-span-1 sm:col-span-1 lg:col-span-4">
                     <label class="block text-xs font-bold text-slate-700 mb-1">Harga (Rp)</label>
                     <input type="number" x-model.number="editForm.price" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                 </div>
 
-                <div class="lg:col-span-4">
+                <div class="col-span-1 sm:col-span-1 lg:col-span-4">
                     <label class="block text-xs font-bold text-slate-700 mb-1">Stok Tersedia</label>
                     <input type="number" x-model.number="editForm.stock" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                 </div>
 
-                <div class="lg:col-span-4">
+                <div class="col-span-1 sm:col-span-2 lg:col-span-4">
                     <label class="block text-xs font-bold text-slate-700 mb-1">Berat Produk (Gram)</label>
                     <input type="number" x-model.number="editForm.weight" placeholder="Opsional" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                 </div>
 
-                <div class="lg:col-span-12">
+                <div class="col-span-full lg:col-span-12">
                     <label class="block text-xs font-bold text-slate-700 mb-1">URL / Link Gambar Utama</label>
                     <input type="text" x-model="editForm.image" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                 </div>
 
-                <div class="lg:col-span-12 bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                <div class="col-span-full bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
                     <div class="flex items-center justify-between">
                         <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Varian Produk</h4>
                         <button type="button" @click="addEditVariantRow()" class="px-3 py-1.5 bg-white hover:bg-teal-50 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors">
@@ -737,29 +735,33 @@
                         </button>
                     </div>
 
-                    <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
+                    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
                         <span class="text-xs font-semibold text-slate-600 whitespace-nowrap">Input Cepat:</span>
                         <input type="text" x-model="editForm.quickVariantsInput" @input="parseEditQuickVariants()" placeholder="Teh, Melon, Leci" class="flex-1 px-3 py-1 rounded-lg border border-slate-200 text-xs focus:outline-none">
                     </div>
 
                     <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
                         <template x-for="(vRow, vIdx) in editForm.variantsList" :key="vIdx">
-                            <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
-                                <span class="text-xs font-bold text-slate-400 w-5 text-center" x-text="vIdx + 1"></span>
-                                <input type="text" x-model="vRow.name" placeholder="Nama Varian" class="w-1/3 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none">
-                                <input type="number" x-model.number="vRow.price" placeholder="Harga" class="w-1/4 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none">
-                                <input type="text" x-model="vRow.image" placeholder="URL Foto" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none">
-                                <button type="button" @click="removeEditVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 text-xs font-bold">✕</button>
+                            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
+                                <div class="flex items-center gap-2 flex-1">
+                                    <span class="text-xs font-bold text-slate-400 w-5 text-center" x-text="vIdx + 1"></span>
+                                    <input type="text" x-model="vRow.name" placeholder="Nama Varian" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none">
+                                </div>
+                                <div class="flex items-center gap-2 flex-1">
+                                    <input type="number" x-model.number="vRow.price" placeholder="Harga" class="w-1/3 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none">
+                                    <input type="text" x-model="vRow.image" placeholder="URL Foto" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none">
+                                    <button type="button" @click="removeEditVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 text-xs font-bold">✕</button>
+                                </div>
                             </div>
                         </template>
                     </div>
                 </div>
 
-                <div class="lg:col-span-12 flex justify-end gap-2 pt-2">
-                    <button type="button" @click="openEditModal = false" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
+                <div class="col-span-full flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
+                    <button type="button" @click="openEditModal = false" class="w-full sm:w-auto px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
                         Batal
                     </button>
-                    <button type="submit" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
+                    <button type="submit" class="w-full sm:w-auto px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
                         Simpan Perubahan
                     </button>
                 </div>
