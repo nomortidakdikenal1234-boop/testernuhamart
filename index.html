@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nuha Delivery</title>
+    <title>NUHA DELIVERY - E-Commerce Website</title>
     <!-- Favicon Logo Transparan -->
     <link rel="icon" type="image/png" href="https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png">
     
@@ -139,7 +139,6 @@
                 loggedInCustomerName: localStorage.getItem('nuha_customer_name') || '',
 
                 products: [],
-
                 cart: [],
                 cartNotification: { show: false, product: null, variant: '', image: '', timer: null },
                 
@@ -308,87 +307,6 @@
                     }
                 },
 
-                reviews: [],
-                newReview: { name: '', rating: 0, comment: '' },
-                toast: { show: false, message: '' },
-
-                openEditProductModal: false,
-                editingProduct: null,
-                editProductForm: {
-                    id: null,
-                    name: '',
-                    category: 'Minuman',
-                    price: '',
-                    stock: 28,
-                    weight: '',
-                    image: '',
-                    quickVariantsInput: '',
-                    variantsList: [{ name: '', image: '' }]
-                },
-
-                openEditProduct(product) {
-                    this.editingProduct = product;
-                    const vars = Array.isArray(product.variants) 
-                        ? product.variants.map(v => typeof v === 'object' ? { name: v.name || '', image: v.image || '' } : { name: String(v), image: '' })
-                        : [];
-                    
-                    this.editProductForm = {
-                        id: product.id,
-                        name: product.name || '',
-                        category: product.category || 'Minuman',
-                        price: product.price || 0,
-                        stock: product.stock ?? 28,
-                        weight: (product.weight && Number(product.weight) > 0) ? product.weight : '',
-                        image: product.image || '',
-                        quickVariantsInput: vars.map(v => v.name).join(', '),
-                        variantsList: vars.length > 0 ? vars : [{ name: '', image: '' }]
-                    };
-                    this.openEditProductModal = true;
-                },
-
-                getVariantsLocalBackup() {
-                    try {
-                        return JSON.parse(localStorage.getItem('nuha_variants_backup') || '{}');
-                    } catch(e) {
-                        return {};
-                    }
-                },
-
-                saveVariantLocalBackup(id, name, variants) {
-                    try {
-                        const map = this.getVariantsLocalBackup();
-                        if (id) map[String(id)] = variants;
-                        if (name) map[String(name).toLowerCase().trim()] = variants;
-                        localStorage.setItem('nuha_variants_backup', JSON.stringify(map));
-                    } catch(e) {}
-                },
-
-                removeVariantLocalBackup(id, name) {
-                    try {
-                        const map = this.getVariantsLocalBackup();
-                        if (id) delete map[String(id)];
-                        if (name) delete map[String(name).toLowerCase().trim()];
-                        localStorage.setItem('nuha_variants_backup', JSON.stringify(map));
-                    } catch(e) {}
-                },
-
-                addEditVariantRow() {
-                    this.editProductForm.variantsList.push({ name: '', image: '' });
-                },
-
-                removeEditVariantRow(idx) {
-                    this.editProductForm.variantsList.splice(idx, 1);
-                },
-
-                parseEditQuickVariants() {
-                    if (!this.editProductForm.quickVariantsInput) return;
-                    const names = this.editProductForm.quickVariantsInput.split(',').map(n => n.trim()).filter(n => n);
-                    this.editProductForm.variantsList = names.map(n => {
-                        const existing = this.editProductForm.variantsList.find(v => v.name === n);
-                        return existing ? existing : { name: n, image: '' };
-                    });
-                },
-
                 async executeSupabaseProductSave(isEdit, data, productId = null) {
                     if (!db) throw new Error('Koneksi Supabase tidak terhubung!');
 
@@ -446,6 +364,7 @@
                         .filter(v => v.name && v.name.trim())
                         .map(v => ({
                             name: v.name.trim(),
+                            price: (v.price !== '' && !isNaN(v.price) && Number(v.price) > 0) ? Number(v.price) : '',
                             image: this.sanitizeImageUrl(v.image)
                         }));
 
@@ -533,13 +452,11 @@
                 },
 
                 selectVariant(v) {
-                    this.activeVariantChoice = typeof v === 'object' 
-                        ? { name: v.name || '', price: v.price ?? '', image: v.image || '' }
-                        : { name: String(v), price: '', image: '' };
-                },
-
-                selectVariant(v) {
-                    this.activeVariantChoice = typeof v === 'object' ? v : { name: v, image: '' };
+                    if (typeof v === 'object' && v !== null) {
+                        this.activeVariantChoice = { name: v.name || '', price: v.price ?? '', image: v.image || '' };
+                    } else {
+                        this.activeVariantChoice = { name: String(v || ''), price: '', image: '' };
+                    }
                 },
 
                 triggerInfaqPrompt() {
@@ -568,7 +485,7 @@
 
                 infaqViaWA() {
                     const text = encodeURIComponent('Assalamualaikum *Lembaga Infaq Nurul Hayah*, saya telah berinfaq ke nomor rekening BSI dari website NUHADELIVERY. Terimakasih!');
-                    window.open(`https://wa.me/6285195520118?text=${text}`, '_blank');
+                    window.open(`https://wa.me/6285859087683?text=${text}`, '_blank');
                 },
 
                 startHeroTypewriter() {
@@ -837,46 +754,6 @@
                     this.newProduct.image = '';
                     this.newProduct.quickVariantsInput = '';
                     this.newProduct.variantsList = [{ name: '', price: '', image: '' }];
-                },
-
-                async updateProduct() {
-                    if (!this.editProductForm.name || !this.editProductForm.price) {
-                        this.showToast('Nama dan harga produk wajib diisi!');
-                        return;
-                    }
-
-                    const cleanedImageUrl = this.sanitizeImageUrl(this.editProductForm.image);
-                    const parsedVariants = this.editProductForm.variantsList
-                        .filter(v => v.name && v.name.trim())
-                        .map(v => ({
-                            name: v.name.trim(),
-                            price: (v.price !== '' && !isNaN(v.price) && Number(v.price) > 0) ? Number(v.price) : '',
-                            image: this.sanitizeImageUrl(v.image)
-                        }));
-
-                    const updatedData = {
-                        name: this.editProductForm.name.trim(),
-                        category: this.editProductForm.category,
-                        price: Number(this.editProductForm.price),
-                        stock: Number(this.editProductForm.stock || 28),
-                        weight: (this.editProductForm.weight && Number(this.editProductForm.weight) > 0) ? Number(this.editProductForm.weight) : null,
-                        image: cleanedImageUrl || 'https://placehold.co/400x400/0d9488/ffffff?text=' + encodeURIComponent(this.editProductForm.name.trim()),
-                        variants: parsedVariants
-                    };
-
-                    try {
-                        if (db && this.editProductForm.id) {
-                            await this.executeSupabaseProductSave(true, updatedData, this.editProductForm.id);
-                            this.showToast('Produk & varian berhasil diperbarui di Supabase!');
-                            await this.fetchProducts();
-                            this.openEditProductModal = false;
-                        } else {
-                            this.showToast('Koneksi Supabase tidak terhubung!');
-                        }
-                    } catch (e) {
-                        console.error('Gagal update database:', e);
-                        this.showToast('Gagal simpan ke Supabase: ' + (e.message || 'Terjadi kesalahan'));
-                    }
                 },
 
                 confirmAddToCartWithVariant() {
@@ -1173,11 +1050,12 @@
 
     <!-- TOP ANNOUNCEMENT BAR -->
     <div class="bg-[#0096ab] text-white text-xs sm:text-sm py-2 px-4 font-semibold text-center shadow-xs">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            Dikelola Oleh Unit Usaha dan Ekonomi Nurul Hayah
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex items-center justify-center">
+            <span>Dikelola Oleh Unit Usaha dan Ekonomi Nurul Hayah</span>
         </div>
     </div>
 
+    <!-- MAIN HEADER -->
     <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-xs transition-all duration-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-20 sm:h-24">
@@ -1382,6 +1260,7 @@
         </div>
     </header>
 
+    <!-- HERO SECTION -->
     <section id="beranda" class="relative overflow-hidden text-white min-h-[420px] sm:min-h-[540px] lg:min-h-[620px] flex items-center justify-center py-20 sm:py-32 lg:py-40 bg-cover bg-center bg-no-repeat" :style="'background-image: url(\'' + heroBgUrl + '\');'">
         <div class="absolute inset-0 bg-slate-950/50 backdrop-blur-[1px]"></div>
 
@@ -1410,10 +1289,11 @@
         </div>
     </section>
 
+    <!-- CATEGORY BAR -->
     <section id="kategori" class="py-6 bg-white border-b border-slate-100 sticky top-20 z-30 backdrop-blur-md bg-white/90 shadow-2xs">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between flex-wrap gap-4">
-                <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto">
                     <button 
                         @click="showAllCatalogView = false; selectedCategory = 'Semua'"
                         :class="(!showAllCatalogView && selectedCategory === 'Semua') ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-white text-slate-700 border-slate-200 hover:border-teal-400 hover:text-teal-600'"
@@ -1429,22 +1309,14 @@
                         </button>
                     </template>
                 </div>
-
-                <button 
-                    @click="toggleShowAllCatalog()" 
-                    :class="showAllCatalogView ? 'bg-teal-50 border-teal-500 text-teal-700' : 'border-teal-500 text-teal-600 hover:bg-teal-50'"
-                    class="px-5 py-2 rounded-xl border border-teal-500 text-xs sm:text-sm font-bold transition-all flex items-center gap-2 shadow-2xs">
-                    <span x-text="showAllCatalogView ? 'Kembali ke Kategori' : 'Lihat semua'"></span>
-                    <svg class="w-4 h-4 transition-transform duration-200" :class="showAllCatalogView ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                    </svg>
-                </button>
             </div>
         </div>
     </section>
 
+    <!-- PRODUCTS SECTION -->
     <section id="produk" class="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 flex-1">
         
+        <!-- ADMIN ADD PRODUCT FORM -->
         <div x-show="isAdminLoggedIn" class="space-y-6">
             <div class="bg-teal-50/80 border-2 border-dashed border-teal-200 rounded-3xl p-6 sm:p-8">
                 <div class="flex items-center justify-between mb-4">
@@ -1500,7 +1372,7 @@
                     <div class="lg:col-span-12 bg-white p-5 rounded-2xl border border-teal-100 space-y-4">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tabel Pengaturan Varian & Harga Specifik</h4>
+                                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tabel Pengaturan Varian & Harga Spesifik</h4>
                                 <p class="text-[11px] text-slate-500">Isi Nama Varian (misal: Teh, Melon) dan Harga khusus varian tersebut (Opsional, jika kosong mengikuti harga utama).</p>
                             </div>
                             <button type="button" @click="addVariantRow()" class="px-3.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors flex items-center gap-1">
@@ -1525,7 +1397,6 @@
                                     </div>
                                     <div class="w-full sm:flex-1 flex items-center gap-2">
                                         <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional)" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
-                                        
                                         <template x-if="vRow.image && vRow.image.trim()">
                                             <img :src="sanitizeImageUrl(vRow.image)" referrerpolicy="no-referrer" class="w-8 h-8 object-cover rounded-lg bg-white border border-slate-200 flex-shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Error';">
                                         </template>
@@ -1547,6 +1418,7 @@
             </div>
         </div>
 
+        <!-- FULL CATALOG VIEW WITH FILTERS & SORT -->
         <div x-show="showAllCatalogView" x-transition>
             <div class="flex items-center justify-between border-b border-slate-200 pb-4 mb-6">
                 <div class="flex items-center gap-2">
@@ -1632,7 +1504,7 @@
                                     <div class="p-4">
                                         <h3 @click="openQuickView(product)" class="font-bold text-slate-900 text-sm sm:text-base cursor-pointer hover:text-teal-600 transition-colors line-clamp-1" x-text="product.name"></h3>
                                         <div class="flex items-center justify-between mt-1">
-                                            <p class="text-teal-600 font-extrabold text-sm sm:text-base" x-text="formatRupiah(product.price)"></p>
+                                            <p class="text-teal-600 font-extrabold text-sm sm:text-base" x-text="formatRupiah(getProductMinPrice(product))"></p>
                                             <span x-show="product.weight && Number(product.weight) > 0" class="text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded" x-text="product.weight + ' g'"></span>
                                         </div>
                                     </div>
@@ -1667,24 +1539,20 @@
             </div>
         </div>
 
+        <!-- DEFAULT CATEGORY SECTION VIEW (LIMITED PREVIEW) -->
         <div x-show="!showAllCatalogView" class="space-y-16">
             <template x-for="cat in categories" :key="cat.name">
                 <div :id="'cat-' + cat.id" class="scroll-mt-32 pt-4 border-b border-slate-100 pb-12 last:border-b-0">
-                    <div class="flex items-center justify-between mb-8 pb-3 border-b border-slate-100">
-                        <div>
+                    <div class="mb-8 pb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-3">
                             <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight" x-text="cat.name"></h2>
-                            <div class="w-12 h-1 bg-teal-600 rounded-full mt-2"></div>
                         </div>
-
-                        <button @click="openCatalogForCategory(cat.name)" class="px-4 py-2 rounded-xl border border-teal-500 text-teal-600 hover:bg-teal-50 text-xs sm:text-sm font-bold transition-all flex items-center gap-2">
-                            <span>Lihat semua</span>
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                        </button>
+                        <div class="w-12 h-1 bg-teal-600 rounded-full mt-2"></div>
                     </div>
 
-                    <!-- MAX 4 PRODUCTS INITIAL VIEW -->
+                    <!-- DAFTAR PRODUK SEMUA PER KATEGORI -->
                     <div x-show="getProductsByCategory(cat.name).length > 0" class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                        <template x-for="product in getProductsByCategory(cat.name, 4)" :key="product.id">
+                        <template x-for="product in getProductsByCategory(cat.name)" :key="product.id">
                             <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group">
                                 <div>
                                     <div class="relative aspect-square overflow-hidden bg-slate-100 cursor-pointer" @click="openQuickView(product)">
@@ -1742,6 +1610,7 @@
         </div>
     </section>
 
+    <!-- REVIEWS & RATING SECTION -->
     <section id="ulasan" class="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100">
         <div class="bg-slate-50/70 rounded-3xl p-6 sm:p-10 border border-slate-100 shadow-2xs">
             <div class="text-center max-w-xl mx-auto mb-10">
@@ -1824,6 +1693,7 @@
         </div>
     </section>
 
+    <!-- FOOTER -->
     <footer class="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
             <div class="space-y-4">
@@ -1859,6 +1729,71 @@
             &copy; 2026 NUHA DELIVERY. All Rights Reserved.
         </div>
     </footer>
+
+    <!-- SHOPPING CART SLIDE-OVER DRAWER -->
+    <div x-show="cartDrawerOpen" x-cloak class="fixed inset-0 z-50 overflow-hidden">
+        <div @click="cartDrawerOpen = false" x-show="cartDrawerOpen" x-transition:enter="ease-in-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in-out duration-300" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"></div>
+
+        <div class="fixed inset-y-0 right-0 pl-10 max-w-full flex">
+            <div x-show="cartDrawerOpen" x-transition:enter="transform transition ease-in-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0" x-transition:leave="transform transition ease-in-out duration-300" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full" class="w-screen max-w-md bg-white shadow-2xl flex flex-col">
+                
+                <div class="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                        <h2 class="text-lg font-extrabold text-slate-900">Keranjang Belanja</h2>
+                    </div>
+                    <button @click="cartDrawerOpen = false" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-6 space-y-4">
+                    <template x-if="cart.length === 0">
+                        <div class="text-center py-16 space-y-3">
+                            <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                            </div>
+                            <h3 class="text-base font-bold text-slate-800">Keranjang Masih Kosong</h3>
+                            <p class="text-xs text-slate-500 max-w-xs mx-auto">Silakan pilih produk favorit Anda dari katalog untuk dimasukkan ke keranjang.</p>
+                        </div>
+                    </template>
+
+                    <template x-for="item in cart" :key="item.cartId">
+                        <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <img :src="item.image" :alt="item.name" referrerpolicy="no-referrer" class="w-16 h-16 object-cover rounded-xl bg-white border border-slate-200 flex-shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto';">
+                            
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-bold text-xs text-slate-900 line-clamp-1" x-text="item.name"></h4>
+                                <p x-show="item.selectedVariant" class="text-[10px] text-teal-600 font-semibold" x-text="'Varian: ' + item.selectedVariant"></p>
+                                <p class="text-xs font-black text-slate-800 mt-1" x-text="formatRupiah(item.price * item.qty)"></p>
+                            </div>
+
+                            <div class="flex items-center gap-1.5 border border-slate-200 rounded-lg bg-white px-2 py-1">
+                                <button @click="updateCartQty(item.cartId, -1)" class="text-slate-500 hover:text-slate-800 font-bold px-1 text-xs">─</button>
+                                <span class="font-bold text-xs text-slate-900 w-4 text-center" x-text="item.qty"></span>
+                                <button @click="updateCartQty(item.cartId, 1)" class="text-slate-800 hover:text-black font-bold px-1 text-xs">+</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div x-show="cart.length > 0" class="p-6 bg-white border-t border-slate-100 space-y-3">
+                    <div x-show="cartTotalWeight > 0" class="flex justify-between items-center text-xs text-slate-500">
+                        <span>Total Berat Estimasi</span>
+                        <span class="font-bold text-slate-700" x-text="cartTotalWeight + ' gram'"></span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm font-extrabold text-slate-900">
+                        <span>Total Tagihan</span>
+                        <span class="text-teal-600 text-lg" x-text="formatRupiah(cartSubtotal)"></span>
+                    </div>
+                    <button @click="openCheckoutModal = true; cartDrawerOpen = false" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition-colors shadow-md flex items-center justify-center gap-2">
+                        <span>Lanjut ke Form Pemesanan</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- POP-UP INFAQ MODAL -->
     <div x-show="infaqModalOpen" x-cloak 
@@ -2006,10 +1941,10 @@
             
             <template x-if="selectedProduct">
                 <div class="flex flex-col h-full max-h-[85vh] overflow-hidden">
-                    <!-- SCROLLABLE BODY -->
                     <div class="overflow-y-auto pr-1 flex-1 space-y-4 pb-2">
-                        <div class="relative w-full h-36 sm:h-44 rounded-2xl overflow-hidden bg-slate-100 border border-slate-100 shadow-2xs flex-shrink-0">
-                            <img :src="getModalDisplayImage()" :alt="selectedProduct.name" referrerpolicy="no-referrer" class="w-full h-full object-cover transition-all duration-300" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
+                        <!-- UNCROPPED CONTAINED DISPLAY -->
+                        <div class="relative w-full h-48 sm:h-56 rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 shadow-2xs flex-shrink-0 p-2 flex items-center justify-center">
+                            <img :src="getModalDisplayImage()" :alt="selectedProduct.name" referrerpolicy="no-referrer" class="max-w-full max-h-full object-contain transition-all duration-300" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
                             <div x-show="activeVariantChoice && activeVariantChoice.image" class="absolute bottom-2 right-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg">
                                 <span>Foto Varian: </span><span x-text="activeVariantChoice ? activeVariantChoice.name : ''"></span>
                             </div>
@@ -2032,8 +1967,7 @@
                                 <span x-show="activeVariantChoice && activeVariantChoice.price" class="text-[11px] text-teal-600 font-bold" x-text="'Harga: ' + formatRupiah(activeVariantChoice ? activeVariantChoice.price : 0)"></span>
                             </div>
                             
-                            <!-- AREA SCROLL KHUSUS VARIAN (RESPONSIF SANGAT BANYAK VARIAN) -->
-                            <div class="max-h-44 sm:max-h-52 overflow-y-auto p-2 bg-slate-50/80 rounded-2xl border border-slate-200/80 scrollbar-thin">
+                            <div class="max-h-44 sm:max-h-52 overflow-y-auto p-2 bg-slate-50/80 rounded-2xl border border-slate-200/80">
                                 <div class="flex flex-wrap gap-2">
                                     <template x-for="v in (selectedProduct.variants || [])" :key="typeof v === 'object' ? v.name : v">
                                         <button type="button" @click="selectVariant(v)"
@@ -2062,7 +1996,7 @@
                         </div>
                     </div>
 
-                    <!-- FIXED BOTTOM ACTION BAR (SELALU TERLIHAT) -->
+                    <!-- FIXED BOTTOM ACTION BAR -->
                     <div class="pt-3 border-t border-slate-100 flex items-center gap-2.5 bg-white flex-shrink-0 mt-auto">
                         <div class="flex items-center justify-between border border-slate-200 rounded-xl px-2.5 py-1.5 w-28 bg-slate-50 flex-shrink-0">
                             <button @click="variantModalQty = Math.max(1, variantModalQty - 1)" class="text-slate-500 hover:text-slate-800 text-base font-bold px-1.5 focus:outline-none">─</button>
@@ -2076,6 +2010,168 @@
                     </div>
                 </div>
             </template>
+        </div>
+    </div>
+
+    <!-- CHECKOUT FORM MODAL -->
+    <div x-show="openCheckoutModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+        <div @click.outside="openCheckoutModal = false" class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-auto">
+            <button @click="openCheckoutModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-extrabold text-slate-900">Formulir Pesanan</h3>
+                    <p class="text-xs text-slate-500">Isi data pemesan untuk kirim ke WhatsApp Admin</p>
+                </div>
+            </div>
+
+            <form @submit.prevent="processWhatsAppCheckout()" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Pemesan / Anak <span class="text-rose-500">*</span></label>
+                    <input type="text" x-model="checkoutForm.nama" required placeholder="Masukkan Nama Lengkap" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Kelas <span class="text-rose-500">*</span></label>
+                        <input type="text" x-model="checkoutForm.kelas" required placeholder="Contoh: 10 IPA 1" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Asrama / Kamar <span class="text-rose-500">*</span></label>
+                        <input type="text" x-model="checkoutForm.asrama" required placeholder="Contoh: Asrama A / K.04" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Metode Pembayaran</label>
+                    <div class="p-3 bg-teal-50/60 border border-teal-200/80 rounded-xl flex items-center justify-between text-xs font-bold text-teal-900">
+                        <span>CASH (Bayar Tunai di Tempat)</span>
+                        <span class="bg-teal-600 text-white text-[10px] px-2 py-0.5 rounded-md">Default</span>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex gap-2">
+                    <button type="button" @click="openCheckoutModal = false" class="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit" class="w-2/3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-md flex items-center justify-center gap-2">
+                        <span>Pesan via WhatsApp</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT PRODUCT MODAL (ADMIN) -->
+    <div x-show="openEditProductModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto">
+        <div @click.outside="openEditProductModal = false" class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-8 max-h-[90vh] overflow-y-auto">
+            <button @click="openEditProductModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="flex items-center gap-2.5 mb-1">
+                <div>
+                    <h3 class="text-xl font-extrabold text-slate-900">Edit Detail Produk (Mode Admin)</h3>
+                </div>
+            </div>
+
+            <form @submit.prevent="updateProduct()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 mt-6">
+                <div class="col-span-1 sm:col-span-2 lg:col-span-6">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Produk</label>
+                    <input type="text" x-model="editProductForm.name" required placeholder="Nama Produk" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                </div>
+
+                <div class="col-span-1 sm:col-span-2 lg:col-span-6">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Kategori</label>
+                    <select x-model="editProductForm.category" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                        <template x-for="cat in categories" :key="cat.name">
+                            <option :value="cat.name" x-text="cat.name"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div class="col-span-1 sm:col-span-1 lg:col-span-4">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Harga (Rp)</label>
+                    <input type="number" x-model.number="editProductForm.price" required placeholder="Harga" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                </div>
+
+                <div class="col-span-1 sm:col-span-1 lg:col-span-4">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Berat Produk (Gram)</label>
+                    <input type="number" x-model.number="editProductForm.weight" placeholder="Opsional (misal: 250)" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                </div>
+
+                <div class="col-span-1 sm:col-span-2 lg:col-span-4">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Stok Tersedia</label>
+                    <input type="number" x-model.number="editProductForm.stock" required placeholder="Stok" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                </div>
+
+                <div class="col-span-1 sm:col-span-2 lg:col-span-12">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">URL / Kode Gambar Utama</label>
+                    <input type="text" x-model="editProductForm.image" placeholder="URL Foto Produk" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                </div>
+
+                <div class="col-span-1 sm:col-span-2 lg:col-span-12 bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">TABEL VARIAN PRODUK & HARGA</h4>
+                        </div>
+                        <button type="button" @click="addEditVariantRow()" class="px-3 py-1.5 bg-white hover:bg-teal-50 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors">
+                            + Tambah Varian
+                        </button>
+                    </div>
+
+                    <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        <template x-for="(vRow, vIdx) in editProductForm.variantsList" :key="vIdx">
+                            <div class="flex flex-col sm:flex-row items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
+                                <span class="text-xs font-bold text-slate-400 w-5 text-center" x-text="vIdx + 1"></span>
+                                <input type="text" x-model="vRow.name" placeholder="Nama Varian" class="w-full sm:w-1/3 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                                <input type="number" x-model.number="vRow.price" placeholder="Harga Varian (Opsional)" class="w-full sm:w-1/4 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                                <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional)" class="w-full sm:flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                                <button type="button" @click="removeEditVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 text-xs font-bold">
+                                    ✕
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="col-span-1 sm:col-span-2 lg:col-span-12 flex justify-end gap-2 pt-2">
+                    <button type="button" @click="openEditProductModal = false" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
+                        Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT HERO SUBHEADLINE MODAL -->
+    <div x-show="openEditHeroModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div @click.outside="openEditHeroModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100">
+            <button @click="openEditHeroModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <h3 class="text-lg font-bold text-slate-900 mb-4">Edit Teks Pengumuman Subheadline</h3>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Teks Pengumuman</label>
+                    <textarea x-model="heroSubheadline" rows="4" class="w-full p-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button @click="openEditHeroModal = false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">Batal</button>
+                    <button @click="saveHeroSettings()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs">Simpan</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2156,14 +2252,14 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">No. WhatsApp (Opsional)</label>
-                                <input type="text" x-model="customerRegForm.phone" placeholder="08123456789" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                                <input type="text" x-model="customerRegForm.phone" placeholder="Contoh: 08123456789" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi</label>
                                 <input type="password" x-model="customerRegForm.password" required placeholder="Buat kata sandi" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
                             </div>
                             <button type="submit" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
-                                Daftar Sekarang
+                                Daftar Akun Baru
                             </button>
                         </form>
                     </div>
@@ -2179,7 +2275,7 @@
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi Admin</label>
                                 <input type="password" x-model="adminForm.password" required placeholder="Kata Sandi Admin" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
                             </div>
-                            <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
+                            <button type="submit" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
                                 Login Mode Admin
                             </button>
                         </form>
@@ -2189,283 +2285,7 @@
         </div>
     </div>
 
-    <!-- MODAL EDIT HERO TEKS -->
-    <div x-show="openEditHeroModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
-        <div @click.outside="openEditHeroModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100">
-            <button @click="openEditHeroModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-
-            <h3 class="text-xl font-black text-slate-900 flex items-center gap-2">
-                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                <span>Edit Teks Subheadline Banner</span>
-            </h3>
-            <p class="text-xs text-slate-500 mt-1 mb-6">Ubah tulisan pengumuman / subheadline yang tampil di bawah judul banner.</p>
-
-            <form @submit.prevent="saveHeroSettings()" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Teks Subheadline / Pengumuman</label>
-                    <textarea x-model="heroSubheadline" rows="4" required placeholder="Tuliskan pesan / pengumuman untuk pengunjung..." class="w-full px-4 py-3 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50"></textarea>
-                </div>
-
-                <div class="pt-2 flex gap-3">
-                    <button type="submit" class="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-colors shadow-xs">
-                        Simpan Teks
-                    </button>
-                    <button type="button" @click="openEditHeroModal = false" class="py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
-                        Batal
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- SHOPPING CART DRAWER -->
-    <div x-show="cartDrawerOpen" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end">
-        <div @click.outside="cartDrawerOpen = false" class="bg-white w-full max-w-md h-full flex flex-col justify-between p-6 shadow-2xl">
-            <div>
-                <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
-                    <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-                        Keranjang Belanja
-                    </h3>
-                    <button @click="cartDrawerOpen = false" class="text-slate-400 hover:text-slate-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                </div>
-
-                <div x-show="cart.length === 0" class="text-center py-12">
-                    <p class="text-slate-400 text-sm">Keranjang belanja Anda masih kosong.</p>
-                </div>
-
-                <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-                    <template x-for="item in cart" :key="item.cartId">
-                        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <div class="flex items-center gap-3">
-                                <img :src="item.image" :alt="item.name" referrerpolicy="no-referrer" class="w-12 h-12 object-cover rounded-lg bg-slate-100" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
-                                <div>
-                                    <h4 class="text-xs font-bold text-slate-800 line-clamp-1" x-text="item.name"></h4>
-                                    <p x-show="item.selectedVariant" class="text-[11px] text-teal-600 font-semibold" x-text="'Varian: ' + item.selectedVariant"></p>
-                                    <div class="flex items-center gap-2 mt-0.5">
-                                        <p class="text-xs text-slate-900 font-bold" x-text="formatRupiah(item.price)"></p>
-                                        <span x-show="item.weight && Number(item.weight) > 0" class="text-[10px] text-slate-400" x-text="'(' + item.weight + 'g)'"></span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <button @click="updateCartQty(item.cartId, -1)" class="w-6 h-6 bg-slate-100 hover:bg-slate-200 rounded-md font-bold text-xs">-</button>
-                                <span class="text-xs font-bold w-4 text-center" x-text="item.qty"></span>
-                                <button @click="updateCartQty(item.cartId, 1)" class="w-6 h-6 bg-slate-100 hover:bg-slate-200 rounded-md font-bold text-xs">+</button>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
-
-            <div x-show="cart.length > 0" class="border-t border-slate-100 pt-4 space-y-4">
-                <div class="space-y-1.5 text-xs">
-                    <div x-show="cartTotalWeight > 0" class="flex justify-between text-slate-500">
-                        <span>Total Berat Pesanan</span>
-                        <span class="font-bold text-slate-700" x-text="cartTotalWeight + ' Gram'"></span>
-                    </div>
-                    <div class="flex justify-between font-bold text-slate-900 text-sm sm:text-base">
-                        <span>Total Subtotal</span>
-                        <span class="text-teal-600" x-text="formatRupiah(cartSubtotal)"></span>
-                    </div>
-                </div>
-                <button @click.stop="openCheckoutModal = true; cartDrawerOpen = false;" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-xs">
-                    Lanjut ke Checkout
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- CHECKOUT MODAL -->
-    <div x-show="openCheckoutModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-        <div @click.outside="openCheckoutModal = false" class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-auto">
-            <button @click="openCheckoutModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-                </div>
-                <div>
-                    <h3 class="text-xl font-extrabold text-slate-900">Formulir Pesanan</h3>
-                    <p class="text-xs text-slate-500">Isi data pemesan untuk kirim ke WhatsApp Admin</p>
-                </div>
-            </div>
-
-            <form @submit.prevent="processWhatsAppCheckout()" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Pemesan / Anak <span class="text-rose-500">*</span></label>
-                    <input type="text" x-model="checkoutForm.nama" required placeholder="Masukkan Nama Lengkap" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Kelas <span class="text-rose-500">*</span></label>
-                        <input type="text" x-model="checkoutForm.kelas" required placeholder="Contoh: 10 IPA 1" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Asrama / Kamar <span class="text-rose-500">*</span></label>
-                        <input type="text" x-model="checkoutForm.asrama" required placeholder="Contoh: Asrama A / K.04" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Metode Pembayaran</label>
-                    <div class="p-3 bg-teal-50/60 border border-teal-200/80 rounded-xl flex items-center justify-between text-xs font-bold text-teal-900">
-                        <span>CASH (Bayar Tunai di Tempat)</span>
-                        <span class="bg-teal-600 text-white text-[10px] px-2 py-0.5 rounded-md">Default</span>
-                    </div>
-                </div>
-
-                <!-- RINGKASAN ITEM PESANAN -->
-                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 space-y-2">
-                    <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Ringkasan Pesanan</h4>
-                    <div class="max-h-32 overflow-y-auto space-y-1.5 pr-1">
-                        <template x-for="item in cart" :key="item.cartId">
-                            <div class="flex items-center justify-between text-xs text-slate-700">
-                                <span class="line-clamp-1 font-medium">
-                                    <span x-text="item.name"></span>
-                                    <span x-show="item.selectedVariant" class="text-teal-600 font-semibold" x-text="' (' + item.selectedVariant + ')'"></span>
-                                    <span class="text-slate-400" x-text="' x' + item.qty"></span>
-                                </span>
-                                <span class="font-bold whitespace-nowrap" x-text="formatRupiah(item.price * item.qty)"></span>
-                            </div>
-                        </template>
-                    </div>
-
-                    <div class="border-t border-slate-200 pt-2 space-y-1">
-                        <div x-show="cartTotalWeight > 0" class="flex justify-between text-xs text-slate-500">
-                            <span>Total Berat:</span>
-                            <span class="font-bold text-slate-700" x-text="cartTotalWeight + ' Gram'"></span>
-                        </div>
-                        <div class="flex justify-between text-sm font-extrabold text-slate-900">
-                            <span>Total Pembayaran:</span>
-                            <span class="text-teal-600" x-text="formatRupiah(cartSubtotal)"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="pt-2 flex gap-2">
-                    <button type="button" @click="openCheckoutModal = false" class="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
-                        Batal
-                    </button>
-                    <button type="submit" class="w-2/3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-md flex items-center justify-center gap-2">
-                        <span>Pesan via WhatsApp</span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL EDIT PRODUK (MODE ADMIN) -->
-    <div x-show="openEditProductModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto">
-        <div @click.outside="openEditProductModal = false" class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-8">
-            <button @click="openEditProductModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-
-            <div class="flex items-center gap-2.5 mb-1">
-                <div class="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                </div>
-                <div>
-                    <h3 class="text-xl font-extrabold text-slate-900">Edit Detail Produk (Mode Admin)</h3>
-                    <p class="text-xs text-slate-500">Ubah informasi nama, kategori, harga, berat, stok, foto & varian produk.</p>
-                </div>
-            </div>
-
-            <form @submit.prevent="updateProduct()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 mt-6">
-                <div class="lg:col-span-6">
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Produk</label>
-                    <input type="text" x-model="editProductForm.name" required placeholder="Nama Produk" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
-                </div>
-
-                <div class="lg:col-span-6">
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Kategori</label>
-                    <select x-model="editProductForm.category" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
-                        <template x-for="cat in categories" :key="cat.name">
-                            <option :value="cat.name" x-text="cat.name"></option>
-                        </template>
-                    </select>
-                </div>
-
-                <div class="lg:col-span-4">
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Harga (Rp)</label>
-                    <input type="number" x-model.number="editProductForm.price" required placeholder="Harga" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
-                </div>
-
-                <div class="lg:col-span-4">
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Berat Produk (Gram) <span class="text-slate-400 font-normal">(Opsional)</span></label>
-                    <input type="number" x-model.number="editProductForm.weight" placeholder="Opsional (misal: 250)" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
-                </div>
-
-                <div class="lg:col-span-4">
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Stok Tersedia</label>
-                    <input type="number" x-model.number="editProductForm.stock" required placeholder="Stok" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
-                </div>
-
-                <div class="lg:col-span-12">
-                    <label class="block text-xs font-bold text-slate-700 mb-1">URL / Kode Gambar Utama</label>
-                    <input type="text" x-model="editProductForm.image" placeholder="URL Foto Produk" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
-                    
-                    <div x-show="editProductForm.image.trim()" class="mt-2 flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                        <img :src="sanitizeImageUrl(editProductForm.image)" referrerpolicy="no-referrer" class="w-12 h-12 object-cover rounded-lg bg-white border border-slate-200" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Link+Error';">
-                        <div class="text-[11px]">
-                            <span class="font-bold text-slate-800 block">Pratinjau Foto Utama</span>
-                            <span class="text-teal-600 font-semibold">Foto terdeteksi</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="lg:col-span-12 bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tabel Varian Produk & Harga</h4>
-                            <p class="text-[11px] text-slate-500">Atur pilihan rasa atau varian produk beserta harganya (Opsional).</p>
-                        </div>
-                        <button type="button" @click="addEditVariantRow()" class="px-3 py-1.5 bg-white hover:bg-teal-50 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors">
-                            + Tambah Varian
-                        </button>
-                    </div>
-
-                    <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
-                        <span class="text-xs font-semibold text-slate-600 whitespace-nowrap">Input Cepat:</span>
-                        <input type="text" x-model="editProductForm.quickVariantsInput" @input="parseEditQuickVariants()" placeholder="Pisahkan dengan koma, misal: Teh, Melon, Leci" class="flex-1 px-3 py-1 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
-                    </div>
-
-                    <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
-                        <template x-for="(vRow, vIdx) in editProductForm.variantsList" :key="vIdx">
-                            <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
-                                <span class="text-xs font-bold text-slate-400 w-5 text-center" x-text="vIdx + 1"></span>
-                                <input type="text" x-model="vRow.name" placeholder="Nama Varian" class="w-1/3 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
-                                <input type="number" x-model.number="vRow.price" placeholder="Harga Varian (Opsional)" class="w-1/4 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
-                                <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional)" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
-                                <button type="button" @click="removeEditVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 text-xs font-bold">
-                                    ✕
-                                </button>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <div class="lg:col-span-12 flex justify-end gap-2 pt-2">
-                    <button type="button" @click="openEditProductModal = false" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
-                        Batal
-                    </button>
-                    <button type="submit" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
-                        Simpan Perubahan
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- TOAST NOTIFICATION -->
+    <!-- TOAST NOTIFICATION POPUP -->
     <div x-show="toast.show" x-cloak x-transition class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
         <span class="w-2 h-2 rounded-full bg-teal-400"></span>
         <span x-text="toast.message"></span>
