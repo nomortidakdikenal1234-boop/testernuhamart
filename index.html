@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nuha Delivery</title>
+    
     <!-- Favicon Logo Transparan -->
     <link rel="icon" type="image/png" href="https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png">
     
@@ -58,6 +59,7 @@
     </style>
 
     <script>
+        // WebSocket safety fallback
         if (typeof window !== 'undefined' && window.WebSocket) {
             const OriginalWebSocket = window.WebSocket;
             window.WebSocket = function(url, protocols) {
@@ -80,6 +82,7 @@
             window.WebSocket.CLOSED = 3;
         }
 
+        // Supabase Initialization
         const SUPABASE_URL = 'https://hygkpfksrjzmlptbvngl.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5Z2twZmtzcmp6bWxwdGJ2bmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNjU1NTQsImV4cCI6MjEwMTg0MTU1NH0.Kr7T5I_CON3KSJgLdNRW2cbhhkPb_ABSGy4J4xNXGXA';
         let db = null;
@@ -115,6 +118,14 @@
                 openCheckoutModal: false,
                 quickViewModal: false,
                 openAuthModal: false,
+
+                // Confirmation modal state
+                confirmModal: {
+                    show: false,
+                    title: '',
+                    message: '',
+                    action: null
+                },
 
                 categories: [
                     { id: 1, name: 'Minuman' },
@@ -160,7 +171,7 @@
                     nama: '',
                     kelas: '',
                     asrama: '',
-                    payment: 'qris'
+                    payment: 'qris' // Default QRIS Instant
                 },
 
                 reviews: [],
@@ -179,6 +190,20 @@
                     image: '',
                     quickVariantsInput: '',
                     variantsList: [{ name: '', price: '', image: '' }]
+                },
+
+                openConfirmModal(title, message, callback) {
+                    this.confirmModal.title = title;
+                    this.confirmModal.message = message;
+                    this.confirmModal.action = callback;
+                    this.confirmModal.show = true;
+                },
+
+                executeConfirmAction() {
+                    if (typeof this.confirmModal.action === 'function') {
+                        this.confirmModal.action();
+                    }
+                    this.confirmModal.show = false;
                 },
 
                 openEditProduct(product) {
@@ -279,32 +304,34 @@
                     return this.selectedProduct ? this.sanitizeImageUrl(this.selectedProduct.image) : '';
                 },
 
-                async deleteProduct(id) {
-                    if (!confirm('Apakah Anda yakin ingin menghapus produk ini?')) return;
-                    try {
-                        if (db) {
-                            await db.from('products').delete().eq('id', id);
+                deleteProduct(id) {
+                    this.openConfirmModal('Hapus Produk', 'Apakah Anda yakin ingin menghapus produk ini secara permanen?', async () => {
+                        try {
+                            if (db) {
+                                await db.from('products').delete().eq('id', id);
+                            }
+                            this.removeVariantLocalBackup(id, null);
+                            this.products = this.products.filter(p => p.id !== id);
+                            this.showToast('Produk berhasil dihapus!');
+                        } catch(e) {
+                            console.error('Gagal menghapus produk:', e);
+                            this.showToast('Gagal menghapus produk!');
                         }
-                        this.removeVariantLocalBackup(id, null);
-                        this.products = this.products.filter(p => p.id !== id);
-                        this.showToast('Produk berhasil dihapus!');
-                    } catch(e) {
-                        console.error('Gagal menghapus produk:', e);
-                        this.showToast('Gagal menghapus produk!');
-                    }
+                    });
                 },
 
-                async deleteReview(id) {
-                    if (!confirm('Apakah Anda yakin ingin menghapus ulasan ini?')) return;
-                    try {
-                        if (db) {
-                            await db.from('reviews').delete().eq('id', id);
+                deleteReview(id) {
+                    this.openConfirmModal('Hapus Ulasan', 'Apakah Anda yakin ingin menghapus ulasan ini?', async () => {
+                        try {
+                            if (db) {
+                                await db.from('reviews').delete().eq('id', id);
+                            }
+                            this.reviews = this.reviews.filter(r => r.id !== id);
+                            this.showToast('Ulasan berhasil dihapus!');
+                        } catch(e) {
+                            this.showToast('Gagal menghapus ulasan!');
                         }
-                        this.reviews = this.reviews.filter(r => r.id !== id);
-                        this.showToast('Ulasan berhasil dihapus!');
-                    } catch(e) {
-                        this.showToast('Gagal menghapus ulasan!');
-                    }
+                    });
                 },
 
                 async executeSupabaseProductSave(isEdit, data, productId = null) {
@@ -334,7 +361,7 @@
                         if (lastError.code === 'PGRST204' || (lastError.message && lastError.message.includes('Could not find the'))) {
                             const match = lastError.message.match(/Could not find the '([^']+)' column/i);
                             if (match && match[1] && payload.hasOwnProperty(match[1])) {
-                                console.warn(`Column '${match[1]}' missing in Supabase products table. Auto-removing...`);
+                                console.warn(`Column '${match[1]}' missing in Supabase products table. Auto-removing from payload...`);
                                 delete payload[match[1]];
                                 continue;
                             }
@@ -381,7 +408,7 @@
                     try {
                         if (db && this.editProductForm.id) {
                             await this.executeSupabaseProductSave(true, updatedData, this.editProductForm.id);
-                            this.showToast('Produk & varian berhasil diperbarui di Supabase!');
+                            this.showToast('Produk & varian berhasil diperbarui!');
                             await this.fetchProducts();
                             this.openEditProductModal = false;
                         } else {
@@ -480,7 +507,7 @@
                         document.execCommand('copy');
                         document.body.removeChild(el);
                     }
-                    this.showToast('Nomor Rekening berhasil disalin!');
+                    this.showToast('Nomor Rekening BSI berhasil disalin!');
                 },
 
                 infaqViaWA() {
@@ -737,7 +764,7 @@
                     try {
                         if (db) {
                             await this.executeSupabaseProductSave(false, newProductData);
-                            this.showToast('Produk & varian berhasil disimpan ke Supabase!');
+                            this.showToast('Produk & varian berhasil disimpan!');
                             await this.fetchProducts();
                         } else {
                             this.showToast('Koneksi Supabase tidak terhubung!');
@@ -832,7 +859,7 @@
                     return (this.cart || []).reduce((sum, item) => sum + ((item.weight && Number(item.weight) > 0 ? Number(item.weight) : 0) * item.qty), 0);
                 },
 
-                processWhatsAppCheckout() {
+                async processWhatsAppCheckout() {
                     if (!this.checkoutForm.nama || !this.checkoutForm.nama.trim()) {
                         this.showToast('Silakan isi Nama Pemesan / Anak terlebih dahulu!');
                         return;
@@ -850,11 +877,34 @@
 
                     const paymentLabel = this.checkoutForm.payment === 'qris' ? 'QRIS Instant' : 'Transfer Bank';
 
+                    const orderData = {
+                        name: this.checkoutForm.nama.trim(),
+                        class_name: this.checkoutForm.kelas.trim(),
+                        room: this.checkoutForm.asrama.trim(),
+                        payment: this.checkoutForm.payment,
+                        items: this.cart,
+                        total_weight: this.cartTotalWeight,
+                        total_price: this.cartSubtotal,
+                        created_at: new Date().toISOString()
+                    };
+
+                    // 1. SIMPAN TERLEBIH DAHULU KE SUPABASE (WAJIB AWAIT)
+                    try {
+                        if (db) {
+                            await db.from('orders').insert([orderData]);
+                        } else if (typeof supabase !== 'undefined') {
+                            await supabase.from('orders').insert([orderData]);
+                        }
+                    } catch (err) {
+                        console.warn('Gagal simpan ke database:', err);
+                    }
+
+                    // 2. SETELAH SELESAI TERSIMPAN, BARU BUKA WHATSAPP
                     let text = `Halo NUHA DELIVERY, saya ingin melakukan pemesanan:\n\n`;
                     text += `*DETAIL PEMESAN*\n`;
-                    text += `• Nama: ${this.checkoutForm.nama.trim()}\n`;
-                    text += `• Kelas: ${this.checkoutForm.kelas.trim()}\n`;
-                    text += `• Asrama/Kamar: ${this.checkoutForm.asrama.trim()}\n`;
+                    text += `• Nama: ${orderData.name}\n`;
+                    text += `• Kelas: ${orderData.class_name}\n`;
+                    text += `• Asrama/Kamar: ${orderData.room}\n`;
                     text += `• Metode Pembayaran: ${paymentLabel}\n\n`;
                     text += `*DETAIL PESANAN*\n`;
                     
@@ -923,7 +973,7 @@
                                 return;
                             }
                         }
-                    } catch(e) {}
+                    } catch (e) {}
 
                     this.isCustomerLoggedIn = true;
                     this.loggedInCustomerName = this.customerRegForm.username;
@@ -1012,18 +1062,19 @@
                     this.newReview.rating = 0;
                 },
 
-                async deleteAllReviews() {
-                    if (!confirm('Apakah Anda yakin ingin menghapus SEMUA ulasan secara permanen?')) return;
-                    try {
-                        if (db) {
-                            await db.from('reviews').delete().neq('id', 0);
+                deleteAllReviews() {
+                    this.openConfirmModal('Kosongkan Semua Ulasan', 'Apakah Anda yakin ingin menghapus SEMUA ulasan secara permanen?', async () => {
+                        try {
+                            if (db) {
+                                await db.from('reviews').delete().neq('id', 0);
+                            }
+                            this.reviews = [];
+                            this.showToast('Semua ulasan berhasil dikosongkan!');
+                        } catch (e) {
+                            this.reviews = [];
+                            this.showToast('Daftar ulasan telah dikosongkan!');
                         }
-                        this.reviews = [];
-                        this.showToast('Semua ulasan berhasil dikosongkan!');
-                    } catch (e) {
-                        this.reviews = [];
-                        this.showToast('Daftar ulasan telah dikosongkan!');
-                    }
+                    });
                 },
 
                 formatRupiah(num) {
@@ -1235,6 +1286,27 @@
             <button @click="openAuthModal = true; mobileMenuOpen = false" class="w-full text-left py-2 text-teal-600 font-semibold border-t border-slate-100 pt-3">
                 <span x-text="isAdminLoggedIn ? 'Status: Admin Logged In' : (isCustomerLoggedIn ? 'Akun: ' + loggedInCustomerName : 'Sign In / Account')"></span>
             </button>
+        </div>
+
+        <!-- FLOATING INFAQ PROMPT BUBBLE FOR MOBILE -->
+        <div x-show="infaqPromptShow" x-cloak
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 -translate-y-4 scale-95"
+             x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+             class="md:hidden fixed top-24 left-4 right-4 z-40">
+            <div @click="infaqModalOpen = true; infaqPromptShow = false" 
+                 class="bg-emerald-600 text-white rounded-2xl p-3.5 shadow-2xl border border-emerald-400 flex items-center justify-between cursor-pointer active:scale-98 transition-transform">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-500/80 flex items-center justify-center animate-bounce flex-shrink-0">
+                        <svg class="w-5 h-5 text-white fill-white" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    </div>
+                    <div>
+                        <p class="font-extrabold text-[10px] text-emerald-200 uppercase tracking-wider">Infaq Nurul Hayah</p>
+                        <p class="text-xs font-bold text-white leading-tight">Raih keberkahan hari ini! Klik untuk berinfaq</p>
+                    </div>
+                </div>
+                <button @click.stop="infaqPromptShow = false" class="text-emerald-200 hover:text-white p-1 text-sm font-bold">✕</button>
+            </div>
         </div>
     </header>
 
@@ -1517,7 +1589,7 @@
             </div>
         </div>
 
-        <!-- DEFAULT CATEGORY SECTION VIEW (LIMITED PREVIEW) -->
+        <!-- DEFAULT CATEGORY SECTION VIEW -->
         <div x-show="!showAllCatalogView" class="space-y-16">
             <template x-for="cat in categories" :key="cat.name">
                 <div :id="'cat-' + cat.id" class="scroll-mt-32 pt-4 border-b border-slate-100 pb-12 last:border-b-0">
@@ -1710,10 +1782,10 @@
 
     <!-- SHOPPING CART SLIDE-OVER DRAWER -->
     <div x-show="cartDrawerOpen" x-cloak class="fixed inset-0 z-50 overflow-hidden">
-        <div @click="cartDrawerOpen = false" x-show="cartDrawerOpen" x-transition:enter="ease-in-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in-out duration-300" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"></div>
+        <div @click="cartDrawerOpen = false" x-show="cartDrawerOpen" x-transition:enter="ease-in-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"></div>
 
         <div class="fixed inset-y-0 right-0 pl-10 max-w-full flex">
-            <div x-show="cartDrawerOpen" x-transition:enter="transform transition ease-in-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0" x-transition:leave="transform transition ease-in-out duration-300" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full" class="w-screen max-w-md bg-white shadow-2xl flex flex-col">
+            <div x-show="cartDrawerOpen" x-transition:enter="transform transition ease-in-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0" class="w-screen max-w-md bg-white shadow-2xl flex flex-col">
                 
                 <div class="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                     <div class="flex items-center gap-2">
@@ -1869,7 +1941,7 @@
         </div>
     </div>
 
-    <!-- QRIS DISPLAY MODAL (UNUK INFAQ) -->
+    <!-- QRIS DISPLAY MODAL -->
     <div x-show="showQrisModal" x-cloak 
          x-transition:enter="transition ease-out duration-300" 
          x-transition:enter-start="opacity-0 scale-95" 
@@ -2008,13 +2080,15 @@
                 </div>
             </div>
 
-            <!-- TOTAL SUMMARY BADGE -->
-            <div class="bg-gradient-to-r from-teal-500 to-emerald-600 text-white p-3.5 rounded-2xl mb-4 flex items-center justify-between shadow-xs">
+            <!-- TOTAL PRICE HIGHLIGHT CARD -->
+            <div class="mb-5 bg-gradient-to-r from-teal-600 to-emerald-600 rounded-2xl p-4 text-white shadow-md flex items-center justify-between">
                 <div>
-                    <p class="text-[10px] uppercase font-bold text-teal-100">Total Ringkasan Pesanan</p>
-                    <p class="text-lg font-black" x-text="formatRupiah(cartSubtotal)"></p>
+                    <p class="text-[10px] uppercase tracking-wider text-teal-100 font-bold">Total Pembayaran</p>
+                    <p class="text-xl sm:text-2xl font-black" x-text="formatRupiah(cartSubtotal)"></p>
                 </div>
-                <span class="text-xs bg-white/20 font-semibold px-2.5 py-1 rounded-xl" x-text="cartTotalItems + ' item'"></span>
+                <div class="text-right">
+                    <span class="text-[10px] bg-white/20 text-white font-bold px-2.5 py-1 rounded-full backdrop-blur-xs" x-text="cartTotalItems + ' Barang'"></span>
+                </div>
             </div>
 
             <form @submit.prevent="processWhatsAppCheckout()" class="space-y-4">
@@ -2034,34 +2108,35 @@
                     </div>
                 </div>
 
-                <!-- METODE PEMBAYARAN SELECTION BUTTONS -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Pilih Metode Pembayaran</label>
-                    <div class="grid grid-cols-2 gap-2 mb-2">
-                        <button type="button" @click="checkoutForm.payment = 'qris'"
-                                :class="checkoutForm.payment === 'qris' ? 'border-2 border-teal-600 bg-teal-50/70 text-teal-900 font-bold shadow-2xs' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
-                                class="p-3 rounded-2xl text-left transition-all flex items-center justify-between">
-                            <div>
-                                <p class="text-xs font-black">QRIS Instant</p>
-                                <p class="text-[10px] text-slate-500 font-normal mt-0.5">Scan All E-Wallet / Bank</p>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Metode Pembayaran <span class="text-rose-500">*</span></label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" 
+                                @click="checkoutForm.payment = 'qris'" 
+                                :class="checkoutForm.payment === 'qris' ? 'border-2 border-teal-600 bg-teal-50/70 text-teal-900 font-extrabold shadow-xs' : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'"
+                                class="p-3 rounded-2xl text-left transition-all flex flex-col justify-between gap-1">
+                            <div class="flex items-center justify-between w-full">
+                                <span class="text-xs">QRIS Instant</span>
+                                <span x-show="checkoutForm.payment === 'qris'" class="w-2 h-2 rounded-full bg-teal-600"></span>
                             </div>
-                            <span x-show="checkoutForm.payment === 'qris'" class="w-2.5 h-2.5 rounded-full bg-teal-600"></span>
+                            <span class="text-[10px] text-slate-500 font-normal">All E-Wallet / Mobile Banking</span>
                         </button>
 
-                        <button type="button" @click="checkoutForm.payment = 'transfer'"
-                                :class="checkoutForm.payment === 'transfer' ? 'border-2 border-teal-600 bg-teal-50/70 text-teal-900 font-bold shadow-2xs' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
-                                class="p-3 rounded-2xl text-left transition-all flex items-center justify-between">
-                            <div>
-                                <p class="text-xs font-black">Transfer Bank</p>
-                                <p class="text-[10px] text-slate-500 font-normal mt-0.5">Transfer No. Rekening</p>
+                        <button type="button" 
+                                @click="checkoutForm.payment = 'transfer'" 
+                                :class="checkoutForm.payment === 'transfer' ? 'border-2 border-teal-600 bg-teal-50/70 text-teal-900 font-extrabold shadow-xs' : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'"
+                                class="p-3 rounded-2xl text-left transition-all flex flex-col justify-between gap-1">
+                            <div class="flex items-center justify-between w-full">
+                                <span class="text-xs">Transfer Bank</span>
+                                <span x-show="checkoutForm.payment === 'transfer'" class="w-2 h-2 rounded-full bg-teal-600"></span>
                             </div>
-                            <span x-show="checkoutForm.payment === 'transfer'" class="w-2.5 h-2.5 rounded-full bg-teal-600"></span>
+                            <span class="text-[10px] text-slate-500 font-normal">Transfer Antar Bank</span>
                         </button>
                     </div>
 
-                    <div class="bg-teal-50/60 p-3 rounded-xl border border-teal-100 text-slate-700 text-xs flex items-center gap-2">
-                        <svg class="w-5 h-5 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <p class="text-[11px] leading-tight">Detail/instruksi pembayaran (Kode QRIS / No. Rekening) akan dikirimkan langsung oleh CS Admin via WhatsApp.</p>
+                    <div class="mt-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 leading-snug flex items-center gap-2">
+                        <svg class="w-4 h-4 text-teal-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Informasi & instruksi pembayaran akan dikirimkan langsung oleh CS via chat WhatsApp.</span>
                     </div>
                 </div>
 
@@ -2292,6 +2367,25 @@
                     </div>
                 </div>
             </template>
+        </div>
+    </div>
+
+    <!-- CUSTOM NON-BLOCKING CONFIRMATION MODAL -->
+    <div x-show="confirmModal.show" x-cloak x-transition class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+        <div @click.outside="confirmModal.show = false" class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center">
+            <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-3 font-bold">
+                !
+            </div>
+            <h3 class="text-base font-extrabold text-slate-900" x-text="confirmModal.title"></h3>
+            <p class="text-xs text-slate-500 mt-1 mb-5" x-text="confirmModal.message"></p>
+            <div class="flex gap-2">
+                <button @click="confirmModal.show = false" class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors">
+                    Batal
+                </button>
+                <button @click="executeConfirmAction()" class="w-1/2 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm">
+                    Lanjutkan
+                </button>
+            </div>
         </div>
     </div>
 
