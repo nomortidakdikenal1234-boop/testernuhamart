@@ -45,11 +45,13 @@
                 isLoggedIn: localStorage.getItem('nuha_admin_logged_in') === 'true',
                 loginForm: { username: '', password: '' },
                 categories: ['Minuman', 'Kudapan', 'Makanan Berat', 'Kebutuhan Pribadi'],
-                activeTab: 'products', // 'products' | 'add'
+                activeTab: 'products', // 'products' | 'add' | 'testimonials'
                 
                 products: [],
+                testimonials: [],
                 isLoading: false,
                 searchQuery: '',
+                searchTestimonialQuery: '',
                 selectedCategoryFilter: 'Semua',
 
                 // Form Tambah Produk Baru
@@ -78,11 +80,18 @@
                     variantsList: [{ name: '', price: '', image: '' }]
                 },
 
-                // Modal Konfirmasi Hapus Custom (Pengganti confirm window)
+                // Modal Konfirmasi Hapus Produk
                 deleteConfirmModal: {
                     open: false,
                     productId: null,
                     productName: ''
+                },
+
+                // Modal Konfirmasi Hapus Testimoni
+                deleteTestimonialModal: {
+                    open: false,
+                    id: null,
+                    name: ''
                 },
 
                 toast: { show: false, message: '', type: 'success' },
@@ -90,6 +99,7 @@
                 init() {
                     if (this.isLoggedIn) {
                         this.fetchProducts();
+                        this.fetchTestimonials();
                     }
                 },
 
@@ -102,6 +112,7 @@
                         localStorage.setItem('nuha_admin_logged_in', 'true');
                         this.showToast('Login Admin Berhasil!', 'success');
                         this.fetchProducts();
+                        this.fetchTestimonials();
                     } else {
                         this.showToast('Username atau Kata Sandi Salah!', 'error');
                     }
@@ -143,6 +154,37 @@
                         }
                     } catch(e) {
                         this.showToast('Gagal memuat daftar produk', 'error');
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                async fetchTestimonials() {
+                    if (!db) return;
+                    this.isLoading = true;
+                    try {
+                        let { data, error } = await db
+                            .from('testimonials')
+                            .select('*')
+                            .order('id', { ascending: false });
+
+                        if (error || !data) {
+                            const res = await db.from('reviews').select('*').order('id', { ascending: false });
+                            if (res.data) data = res.data;
+                        }
+
+                        if (data) {
+                            this.testimonials = data.map(t => ({
+                                id: t.id,
+                                name: t.name || t.user_name || t.nama || 'Pelanggan',
+                                comment: t.comment || t.message || t.pesan || t.review || '',
+                                rating: Number(t.rating || t.bintang || 5),
+                                product_name: t.product_name || t.produk || '',
+                                created_at: t.created_at || t.tanggal || ''
+                            }));
+                        }
+                    } catch(e) {
+                        console.warn('Gagal memuat testimoni:', e);
                     } finally {
                         this.isLoading = false;
                     }
@@ -385,6 +427,34 @@
                     }
                 },
 
+                promptDeleteTestimonial(t) {
+                    this.deleteTestimonialModal.id = t.id;
+                    this.deleteTestimonialModal.name = t.name;
+                    this.deleteTestimonialModal.open = true;
+                },
+
+                async confirmDeleteTestimonial() {
+                    const id = this.deleteTestimonialModal.id;
+                    if (!id) return;
+
+                    this.isLoading = true;
+                    try {
+                        if (db) {
+                            let { error } = await db.from('testimonials').delete().eq('id', id);
+                            if (error) {
+                                await db.from('reviews').delete().eq('id', id);
+                            }
+                        }
+                        this.testimonials = this.testimonials.filter(t => t.id !== id);
+                        this.showToast('Testimoni berhasil dihapus!', 'success');
+                    } catch(e) {
+                        this.showToast('Gagal menghapus testimoni', 'error');
+                    } finally {
+                        this.isLoading = false;
+                        this.deleteTestimonialModal.open = false;
+                    }
+                },
+
                 get filteredProducts() {
                     let items = [...this.products];
                     if (this.selectedCategoryFilter !== 'Semua') {
@@ -395,6 +465,19 @@
                         items = items.filter(p => 
                             (p.name && p.name.toLowerCase().includes(q)) ||
                             (p.category && p.category.toLowerCase().includes(q))
+                        );
+                    }
+                    return items;
+                },
+
+                get filteredTestimonials() {
+                    let items = [...this.testimonials];
+                    if (this.searchTestimonialQuery && this.searchTestimonialQuery.trim()) {
+                        const q = this.searchTestimonialQuery.toLowerCase().trim();
+                        items = items.filter(t => 
+                            (t.name && t.name.toLowerCase().includes(q)) ||
+                            (t.comment && t.comment.toLowerCase().includes(q)) ||
+                            (t.product_name && t.product_name.toLowerCase().includes(q))
                         );
                     }
                     return items;
@@ -427,7 +510,7 @@
             <div class="text-center mb-6">
                 <img src="https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png" alt="NUHA Logo" class="h-20 mx-auto object-contain mb-3" onerror="this.onerror=null; this.src='https://i.ibb.co.com/jPmfww6M/Primary-Logo-1-jpg.jpg'">
                 <h1 class="text-2xl font-black text-slate-900 tracking-tight">Admin Panel</h1>
-                <p class="text-xs text-slate-500 mt-1">Masuk untuk mengelola produk & katalog NUHA DELIVERY</p>
+                <p class="text-xs text-slate-500 mt-1">Masuk untuk mengelola produk & testimoni NUHA DELIVERY</p>
             </div>
 
             <form @submit.prevent="login()" class="space-y-4">
@@ -455,7 +538,7 @@
                     <img src="https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png" alt="Logo" class="h-10 w-auto object-contain" onerror="this.onerror=null; this.src='https://i.ibb.co.com/jPmfww6M/Primary-Logo-1-jpg.jpg'">
                     <div>
                         <h2 class="text-sm font-black text-white tracking-wide">NUHA DELIVERY</h2>
-                        <p class="text-[10px] text-teal-400 font-bold uppercase tracking-wider">Product Management Panel</p>
+                        <p class="text-[10px] text-teal-400 font-bold uppercase tracking-wider">Management Panel</p>
                     </div>
                 </div>
 
@@ -471,7 +554,7 @@
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
             
             <!-- STATS OVERVIEW -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
                 <div class="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs min-w-0">
                     <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1 truncate">Total Produk</span>
                     <span class="text-xl sm:text-2xl font-black text-slate-900" x-text="products.length"></span>
@@ -482,6 +565,10 @@
                         <span class="text-xl sm:text-2xl font-black text-teal-600" x-text="getCategoryCount(cat)"></span>
                     </div>
                 </template>
+                <div class="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs min-w-0">
+                    <span class="text-[10px] sm:text-[11px] font-bold text-amber-500 uppercase tracking-wider block mb-1 truncate">Testimoni</span>
+                    <span class="text-xl sm:text-2xl font-black text-amber-500" x-text="testimonials.length"></span>
+                </div>
             </div>
 
             <!-- TAB NAVIGATION -->
@@ -493,9 +580,13 @@
                     <button @click="activeTab = 'add'" :class="activeTab === 'add' ? 'bg-teal-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5">
                         <span>+ Tambah Produk Baru</span>
                     </button>
+                    <button @click="activeTab = 'testimonials'" :class="activeTab === 'testimonials' ? 'bg-amber-500 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5">
+                        <span>💬 Testimoni</span>
+                        <span class="bg-amber-700/30 text-amber-100 text-[10px] px-2 py-0.5 rounded-full" x-text="testimonials.length"></span>
+                    </button>
                 </div>
 
-                <button @click="fetchProducts()" class="self-end sm:self-auto text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-xl transition-colors flex items-center gap-1">
+                <button @click="fetchProducts(); fetchTestimonials()" class="self-end sm:self-auto text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-xl transition-colors flex items-center gap-1">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     <span>Refresh</span>
                 </button>
@@ -669,10 +760,71 @@
                             Batal
                         </button>
                         <button type="submit" class="w-full sm:w-auto px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-md">
-                            Simpan Produk.
+                            Simpan Produk
                         </button>
                     </div>
                 </form>
+            </div>
+
+            <!-- TAB 3: DAFTAR TESTIMONI & HAPUS -->
+            <div x-show="activeTab === 'testimonials'" class="space-y-4">
+                <!-- SEARCH TESTIMONI -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+                    <input type="text" x-model="searchTestimonialQuery" placeholder="Cari nama pengirim, isi testimoni, atau produk..." class="w-full sm:w-80 px-4 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+                    
+                    <span class="text-xs text-slate-500 font-semibold">Total: <b class="text-slate-900" x-text="filteredTestimonials.length"></b> ulasan</span>
+                </div>
+
+                <!-- TABLE TESTIMONI -->
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200">
+                                    <th class="p-4 w-12">#</th>
+                                    <th class="p-4">Pengirim</th>
+                                    <th class="p-4">Rating</th>
+                                    <th class="p-4">Ulasan / Testimoni</th>
+                                    <th class="p-4">Produk</th>
+                                    <th class="p-4">Tanggal</th>
+                                    <th class="p-4 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <template x-for="(t, idx) in filteredTestimonials" :key="t.id || idx">
+                                    <tr class="hover:bg-slate-50/80 transition-colors">
+                                        <td class="p-4 font-bold text-slate-400" x-text="idx + 1"></td>
+                                        <td class="p-4 font-bold text-slate-900 whitespace-nowrap" x-text="t.name"></td>
+                                        <td class="p-4 whitespace-nowrap">
+                                            <div class="flex items-center text-amber-400 gap-0.5">
+                                                <template x-for="star in 5" :key="star">
+                                                    <svg class="w-4 h-4" :class="star <= t.rating ? 'fill-amber-400 text-amber-400' : 'fill-slate-200 text-slate-200'" viewBox="0 0 20 20">
+                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                                    </svg>
+                                                </template>
+                                            </div>
+                                        </td>
+                                        <td class="p-4 text-slate-700 font-medium max-w-md break-words" x-text="t.comment || '-'"></td>
+                                        <td class="p-4 text-slate-500 whitespace-nowrap" x-text="t.product_name || '-'"></td>
+                                        <td class="p-4 text-slate-400 text-[11px] whitespace-nowrap" x-text="t.created_at ? new Date(t.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'"></td>
+                                        <td class="p-4 text-right whitespace-nowrap">
+                                            <button @click="promptDeleteTestimonial(t)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1 text-xs">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                <span>Hapus</span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+
+                                <tr x-show="filteredTestimonials.length === 0">
+                                    <td colspan="7" class="p-12 text-center text-slate-400 font-bold">
+                                        Belum ada testimoni atau ulasan ditemukan.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </main>
 
@@ -788,7 +940,7 @@
         </div>
     </div>
 
-    <!-- MODAL KONFIRMASI HAPUS -->
+    <!-- MODAL KONFIRMASI HAPUS PRODUK -->
     <div x-show="deleteConfirmModal.open" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
         <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 border border-slate-100">
             <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
@@ -803,6 +955,27 @@
                     Batal
                 </button>
                 <button @click="confirmDeleteProduct()" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-colors shadow-xs">
+                    Ya, Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIRMASI HAPUS TESTIMONI -->
+    <div x-show="deleteTestimonialModal.open" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 border border-slate-100">
+            <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+                🗑️
+            </div>
+            <div>
+                <h4 class="text-base font-black text-slate-900">Hapus Testimoni Ini?</h4>
+                <p class="text-xs text-slate-500 mt-1">Anda akan menghapus testimoni dari <span class="font-bold text-slate-800" x-text="deleteTestimonialModal.name"></span> secara permanen dari Supabase.</p>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button @click="deleteTestimonialModal.open = false" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors">
+                    Batal
+                </button>
+                <button @click="confirmDeleteTestimonial()" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-colors shadow-xs">
                     Ya, Hapus
                 </button>
             </div>
