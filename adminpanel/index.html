@@ -13,6 +13,9 @@
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <!-- SheetJS for Excel Spreadsheet Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
     <!-- Google Fonts (Inter) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -45,14 +48,17 @@
                 isLoggedIn: localStorage.getItem('nuha_admin_logged_in') === 'true',
                 loginForm: { username: '', password: '' },
                 categories: ['Minuman', 'Kudapan', 'Makanan Berat', 'Kebutuhan Pribadi'],
-                activeTab: 'products', // 'products' | 'add' | 'testimonials'
+                activeTab: 'products', // 'products' | 'add' | 'testimonials' | 'orders'
                 
                 products: [],
                 testimonials: [],
+                orders: [],
                 isLoading: false,
                 searchQuery: '',
                 searchTestimonialQuery: '',
+                searchOrderQuery: '',
                 selectedCategoryFilter: 'Semua',
+                selectedMonth: new Date().toISOString().slice(0, 7), // Format YYYY-MM
 
                 // Form Tambah Produk Baru
                 newProduct: {
@@ -94,12 +100,20 @@
                     name: ''
                 },
 
+                // Modal Konfirmasi Hapus Riwayat Pesanan
+                deleteOrderModal: {
+                    open: false,
+                    id: null,
+                    name: ''
+                },
+
                 toast: { show: false, message: '', type: 'success' },
 
                 init() {
                     if (this.isLoggedIn) {
                         this.fetchProducts();
                         this.fetchTestimonials();
+                        this.fetchOrders();
                     }
                 },
 
@@ -113,6 +127,7 @@
                         this.showToast('Login Admin Berhasil!', 'success');
                         this.fetchProducts();
                         this.fetchTestimonials();
+                        this.fetchOrders();
                     } else {
                         this.showToast('Username atau Kata Sandi Salah!', 'error');
                     }
@@ -188,6 +203,89 @@
                     } finally {
                         this.isLoading = false;
                     }
+                },
+
+                async fetchOrders() {
+                    if (!db) return;
+                    this.isLoading = true;
+                    try {
+                        // OTOMATIS HAPUS RIWAYAT YANG LEBIH DARI 1 BULAN (30 HARI)
+                        const thirtyDaysAgo = new Date();
+                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                        const isoThirtyDaysAgo = thirtyDaysAgo.toISOString();
+
+                        try {
+                            await db.from('orders').delete().lt('created_at', isoThirtyDaysAgo);
+                        } catch(errPurge) {
+                            console.warn('Proses pembersihan otomatis data lama:', errPurge);
+                        }
+
+                        let { data, error } = await db
+                            .from('orders')
+                            .select('*')
+                            .order('created_at', { ascending: false });
+
+                        if (error || !data) {
+                            const res = await db.from('purchases').select('*').order('created_at', { ascending: false });
+                            if (res.data) data = res.data;
+                        }
+
+                        if (data) {
+                            this.orders = data.map(o => ({
+                                id: o.id,
+                                name: o.name || o.customer_name || o.nama || 'Pelanggan',
+                                class_name: o.class_name || o.class || o.kelas || '-',
+                                room: o.room || o.kamar || '-',
+                                created_at: o.created_at || o.tanggal || new Date().toISOString(),
+                                total_price: Number(o.total_price || o.total || o.total_harga || 0)
+                            }));
+                        }
+                    } catch(e) {
+                        console.warn('Gagal memuat riwayat pembelian:', e);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                exportToSpreadsheet() {
+                    const list = this.filteredOrders;
+                    if (!list || list.length === 0) {
+                        this.showToast('Tidak ada data riwayat pembelian untuk diexport!', 'error');
+                        return;
+                    }
+
+                    const exportData = list.map((item, index) => ({
+                        'No': index + 1,
+                        'Nama Pelanggan': item.name,
+                        'Kelas': item.class_name,
+                        'Kamar': item.room,
+                        'Kapan Belinya': item.created_at ? new Date(item.created_at).toLocaleString('id-ID', {
+                            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                        }) : '-',
+                        'Total Harga (Rp)': item.total_price
+                    }));
+
+                    const monthLabel = this.selectedMonth ? this.selectedMonth : 'Semua_Bulan';
+
+                    if (typeof XLSX !== 'undefined') {
+                        const worksheet = XLSX.utils.json_to_sheet(exportData);
+                        const workbook = XLSX.utils.book_new();
+                        XLSX.utils.book_append_sheet(workbook, worksheet, "Riwayat Pembelian");
+                        XLSX.writeFile(workbook, `Riwayat_Pembelian_NUHA_${monthLabel}.xlsx`);
+                    } else {
+                        let csvContent = "\uFEFFNo,Nama Pelanggan,Kelas,Kamar,Kapan Belinya,Total Harga\n";
+                        exportData.forEach(row => {
+                            csvContent += `"${row['No']}","${row['Nama Pelanggan']}","${row['Kelas']}","${row['Kamar']}","${row['Kapan Belinya']}","${row['Total Harga (Rp)']}"\n`;
+                        });
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const link = document.createElement("a");
+                        link.href = URL.createObjectURL(blob);
+                        link.setAttribute("download", `Riwayat_Pembelian_NUHA_${monthLabel}.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }
+                    this.showToast('Spreadsheet riwayat berhasil diunduh!', 'success');
                 },
 
                 sanitizeImageUrl(rawUrl) {
@@ -455,6 +553,34 @@
                     }
                 },
 
+                promptDeleteOrder(o) {
+                    this.deleteOrderModal.id = o.id;
+                    this.deleteOrderModal.name = o.name;
+                    this.deleteOrderModal.open = true;
+                },
+
+                async confirmDeleteOrder() {
+                    const id = this.deleteOrderModal.id;
+                    if (!id) return;
+
+                    this.isLoading = true;
+                    try {
+                        if (db) {
+                            let { error } = await db.from('orders').delete().eq('id', id);
+                            if (error) {
+                                await db.from('purchases').delete().eq('id', id);
+                            }
+                        }
+                        this.orders = this.orders.filter(o => o.id !== id);
+                        this.showToast('Riwayat pesanan berhasil dihapus!', 'success');
+                    } catch(e) {
+                        this.showToast('Gagal menghapus riwayat pesanan', 'error');
+                    } finally {
+                        this.isLoading = false;
+                        this.deleteOrderModal.open = false;
+                    }
+                },
+
                 get filteredProducts() {
                     let items = [...this.products];
                     if (this.selectedCategoryFilter !== 'Semua') {
@@ -481,6 +607,35 @@
                         );
                     }
                     return items;
+                },
+
+                get filteredOrders() {
+                    let items = [...this.orders];
+                    
+                    // Filter per Bulan (YYYY-MM)
+                    if (this.selectedMonth && this.selectedMonth !== 'Semua') {
+                        items = items.filter(o => {
+                            if (!o.created_at) return false;
+                            const d = new Date(o.created_at);
+                            const yearMonth = d.toISOString().slice(0, 7);
+                            return yearMonth === this.selectedMonth;
+                        });
+                    }
+
+                    // Filter pencarian nama, kelas, atau kamar
+                    if (this.searchOrderQuery && this.searchOrderQuery.trim()) {
+                        const q = this.searchOrderQuery.toLowerCase().trim();
+                        items = items.filter(o => 
+                            (o.name && o.name.toLowerCase().includes(q)) ||
+                            (o.class_name && o.class_name.toLowerCase().includes(q)) ||
+                            (o.room && o.room.toLowerCase().includes(q))
+                        );
+                    }
+                    return items;
+                },
+
+                get getTotalOmsetBulanIni() {
+                    return this.filteredOrders.reduce((sum, item) => sum + (item.total_price || 0), 0);
                 },
 
                 getCategoryCount(catName) {
@@ -554,7 +709,7 @@
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
             
             <!-- STATS OVERVIEW -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
                 <div class="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs min-w-0">
                     <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1 truncate">Total Produk</span>
                     <span class="text-xl sm:text-2xl font-black text-slate-900" x-text="products.length"></span>
@@ -569,6 +724,10 @@
                     <span class="text-[10px] sm:text-[11px] font-bold text-amber-500 uppercase tracking-wider block mb-1 truncate">Testimoni</span>
                     <span class="text-xl sm:text-2xl font-black text-amber-500" x-text="testimonials.length"></span>
                 </div>
+                <div class="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs min-w-0">
+                    <span class="text-[10px] sm:text-[11px] font-bold text-emerald-600 uppercase tracking-wider block mb-1 truncate">Riwayat Beli</span>
+                    <span class="text-xl sm:text-2xl font-black text-emerald-600" x-text="orders.length"></span>
+                </div>
             </div>
 
             <!-- TAB NAVIGATION -->
@@ -578,15 +737,22 @@
                         Daftar Produk (<span x-text="filteredProducts.length"></span>)
                     </button>
                     <button @click="activeTab = 'add'" :class="activeTab === 'add' ? 'bg-teal-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5">
-                        <span>+ Tambah Produk Baru</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <span>Tambah Produk Baru</span>
                     </button>
                     <button @click="activeTab = 'testimonials'" :class="activeTab === 'testimonials' ? 'bg-amber-500 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5">
-                        <span>💬 Testimoni</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        <span>Testimoni</span>
                         <span class="bg-amber-700/30 text-amber-100 text-[10px] px-2 py-0.5 rounded-full" x-text="testimonials.length"></span>
+                    </button>
+                    <button @click="activeTab = 'orders'" :class="activeTab === 'orders' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <span>Riwayat Pembelian</span>
+                        <span class="bg-emerald-800/30 text-emerald-100 text-[10px] px-2 py-0.5 rounded-full" x-text="orders.length"></span>
                     </button>
                 </div>
 
-                <button @click="fetchProducts(); fetchTestimonials()" class="self-end sm:self-auto text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-xl transition-colors flex items-center gap-1">
+                <button @click="fetchProducts(); fetchTestimonials(); fetchOrders()" class="self-end sm:self-auto text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-xl transition-colors flex items-center gap-1">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     <span>Refresh</span>
                 </button>
@@ -826,6 +992,86 @@
                     </div>
                 </div>
             </div>
+
+            <!-- TAB 4: RIWAYAT PEMBELIAN & EXPORT SPREADSHEET -->
+            <div x-show="activeTab === 'orders'" class="space-y-4">
+                <!-- AUTO DELETE NOTICE & STATS -->
+                <div class="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-emerald-900">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-base flex-shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <span class="font-bold block text-emerald-950">Pembersihan Otomatis 1 Bulan (30 Hari)</span>
+                            <span class="text-emerald-700">Riwayat transaksi yang berumur lebih dari 30 hari akan secara otomatis dihapus oleh sistem.</span>
+                        </div>
+                    </div>
+                    <div class="bg-white px-4 py-2 rounded-xl border border-emerald-200/80 font-bold text-xs flex items-center gap-2 self-stretch sm:self-auto justify-between">
+                        <span class="text-slate-500">Omset Bulan Ini:</span>
+                        <span class="text-emerald-700 text-sm" x-text="formatRupiah(getTotalOmsetBulanIni)"></span>
+                    </div>
+                </div>
+
+                <!-- SEARCH, FILTER MONTH & EXPORT BUTTON -->
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+                    <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                        <input type="text" x-model="searchOrderQuery" placeholder="Cari nama, kelas, atau kamar..." class="w-full sm:w-72 px-4 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <span class="text-xs font-bold text-slate-500 whitespace-nowrap">Bulan:</span>
+                            <input type="month" x-model="selectedMonth" class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-slate-50">
+                        </div>
+                    </div>
+
+                    <button @click="exportToSpreadsheet()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 text-xs">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <span>Export Spreadsheet (.xlsx)</span>
+                    </button>
+                </div>
+
+                <!-- TABLE RIWAYAT PEMBELIAN -->
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200">
+                                    <th class="p-4 w-12 text-center">No</th>
+                                    <th class="p-4">Nama Pelanggan</th>
+                                    <th class="p-4">Kelas</th>
+                                    <th class="p-4">Kamar</th>
+                                    <th class="p-4">Kapan Belinya</th>
+                                    <th class="p-4">Total Harga</th>
+                                    <th class="p-4 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <template x-for="(o, idx) in filteredOrders" :key="o.id || idx">
+                                    <tr class="hover:bg-slate-50/80 transition-colors">
+                                        <td class="p-4 font-bold text-slate-400 text-center" x-text="idx + 1"></td>
+                                        <td class="p-4 font-bold text-slate-900 whitespace-nowrap" x-text="o.name"></td>
+                                        <td class="p-4 whitespace-nowrap font-semibold text-slate-700" x-text="o.class_name"></td>
+                                        <td class="p-4 whitespace-nowrap font-semibold text-slate-700" x-text="o.room"></td>
+                                        <td class="p-4 text-slate-600 text-[11px] whitespace-nowrap" x-text="o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'"></td>
+                                        <td class="p-4 font-bold text-emerald-600 whitespace-nowrap" x-text="formatRupiah(o.total_price)"></td>
+                                        <td class="p-4 text-right whitespace-nowrap">
+                                            <button @click="promptDeleteOrder(o)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1 text-xs">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                <span>Hapus</span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+
+                                <tr x-show="filteredOrders.length === 0">
+                                    <td colspan="7" class="p-12 text-center text-slate-400 font-bold">
+                                        Belum ada riwayat pembelian untuk bulan ini.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- FOOTER -->
@@ -965,7 +1211,7 @@
     <div x-show="deleteTestimonialModal.open" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
         <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 border border-slate-100">
             <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
-                🗑️
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </div>
             <div>
                 <h4 class="text-base font-black text-slate-900">Hapus Testimoni Ini?</h4>
@@ -976,6 +1222,27 @@
                     Batal
                 </button>
                 <button @click="confirmDeleteTestimonial()" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-colors shadow-xs">
+                    Ya, Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIRMASI HAPUS PESANAN -->
+    <div x-show="deleteOrderModal.open" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 border border-slate-100">
+            <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </div>
+            <div>
+                <h4 class="text-base font-black text-slate-900">Hapus Riwayat Pesanan Ini?</h4>
+                <p class="text-xs text-slate-500 mt-1">Anda akan menghapus riwayat pesanan dari <span class="font-bold text-slate-800" x-text="deleteOrderModal.name"></span> secara permanen dari Supabase.</p>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button @click="deleteOrderModal.open = false" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors">
+                    Batal
+                </button>
+                <button @click="confirmDeleteOrder()" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-colors shadow-xs">
                     Ya, Hapus
                 </button>
             </div>
