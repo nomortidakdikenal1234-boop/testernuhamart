@@ -37,10 +37,12 @@
         let db = null;
         try {
             if (typeof supabase !== 'undefined' && supabase.createClient) {
-                db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                    realtime: { enabled: false }
+                });
             }
         } catch(e) {
-            console.warn('Supabase initialization error:', e);
+            console.warn('Supabase initialization warning:', e);
         }
 
         function adminApp() {
@@ -54,11 +56,12 @@
                 testimonials: [],
                 orders: [],
                 isLoading: false,
+                pollTimer: null,
                 searchQuery: '',
                 searchTestimonialQuery: '',
                 searchOrderQuery: '',
                 selectedCategoryFilter: 'Semua',
-                selectedMonth: new Date().toISOString().slice(0, 7), // Format YYYY-MM
+                selectedMonth: 'Semua', // 'Semua' or 'YYYY-MM'
 
                 // Form Tambah Produk Baru
                 newProduct: {
@@ -86,26 +89,14 @@
                     variantsList: [{ name: '', price: '', image: '' }]
                 },
 
-                // Modal Konfirmasi Hapus Produk
-                deleteConfirmModal: {
-                    open: false,
-                    productId: null,
-                    productName: ''
-                },
+                // Modal Detail Pesanan
+                openOrderDetailModal: false,
+                selectedOrderDetails: null,
 
-                // Modal Konfirmasi Hapus Testimoni
-                deleteTestimonialModal: {
-                    open: false,
-                    id: null,
-                    name: ''
-                },
-
-                // Modal Konfirmasi Hapus Riwayat Pesanan
-                deleteOrderModal: {
-                    open: false,
-                    id: null,
-                    name: ''
-                },
+                // Modals Konfirmasi Hapus
+                deleteConfirmModal: { open: false, productId: null, productName: '' },
+                deleteTestimonialModal: { open: false, id: null, name: '' },
+                deleteOrderModal: { open: false, id: null, name: '' },
 
                 toast: { show: false, message: '', type: 'success' },
 
@@ -114,7 +105,17 @@
                         this.fetchProducts();
                         this.fetchTestimonials();
                         this.fetchOrders();
+                        this.startAutoSync();
                     }
+                },
+
+                startAutoSync() {
+                    if (this.pollTimer) clearInterval(this.pollTimer);
+                    this.pollTimer = setInterval(() => {
+                        if (this.isLoggedIn) {
+                            this.fetchOrders();
+                        }
+                    }, 4000);
                 },
 
                 login() {
@@ -128,6 +129,7 @@
                         this.fetchProducts();
                         this.fetchTestimonials();
                         this.fetchOrders();
+                        this.startAutoSync();
                     } else {
                         this.showToast('Username atau Kata Sandi Salah!', 'error');
                     }
@@ -136,6 +138,7 @@
                 logout() {
                     this.isLoggedIn = false;
                     localStorage.removeItem('nuha_admin_logged_in');
+                    if (this.pollTimer) clearInterval(this.pollTimer);
                     this.showToast('Logout berhasil', 'info');
                 },
 
@@ -205,46 +208,108 @@
                     }
                 },
 
-                async fetchOrders() {
-                    if (!db) return;
-                    this.isLoading = true;
-                    try {
-                        // OTOMATIS HAPUS RIWAYAT YANG LEBIH DARI 1 BULAN (30 HARI)
-                        const thirtyDaysAgo = new Date();
-                        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                        const isoThirtyDaysAgo = thirtyDaysAgo.toISOString();
+                normalizeOrder(o) {
+                    if (!o) return null;
+                    const name = o.nama || o.name || o.customer_name || o.pemesan || o.user_name || o.pelanggan || 'Pelanggan';
+                    const class_name = o.kelas || o.class_name || o.class || o.tingkat || o.level || '-';
+                    const room = o.asrama || o.room || o.kamar || o.kobong || '-';
+                    const created_at = o.created_at || o.tanggal || o.date || o.timestamp || o.created_time || new Date().toISOString();
+                    const total_price = Number(o.total_price || o.total || o.total_harga || o.amount || o.harga || o.price || 0);
+                    const payment = o.payment || o.metode_pembayaran || o.payment_method || 'qris';
 
-                        try {
-                            await db.from('orders').delete().lt('created_at', isoThirtyDaysAgo);
-                        } catch(errPurge) {
-                            console.warn('Proses pembersihan otomatis data lama:', errPurge);
+                    let parsedItems = [];
+                    if (o.items || o.cart || o.pesanan_detail) {
+                        const rawItems = o.items || o.cart || o.pesanan_detail;
+                        if (Array.isArray(rawItems)) {
+                            parsedItems = rawItems;
+                        } else if (typeof rawItems === 'string') {
+                            try { parsedItems = JSON.parse(rawItems); } catch(e) { parsedItems = []; }
                         }
-
-                        let { data, error } = await db
-                            .from('orders')
-                            .select('*')
-                            .order('created_at', { ascending: false });
-
-                        if (error || !data) {
-                            const res = await db.from('purchases').select('*').order('created_at', { ascending: false });
-                            if (res.data) data = res.data;
-                        }
-
-                        if (data) {
-                            this.orders = data.map(o => ({
-                                id: o.id,
-                                name: o.name || o.customer_name || o.nama || 'Pelanggan',
-                                class_name: o.class_name || o.class || o.kelas || '-',
-                                room: o.room || o.kamar || '-',
-                                created_at: o.created_at || o.tanggal || new Date().toISOString(),
-                                total_price: Number(o.total_price || o.total || o.total_harga || 0)
-                            }));
-                        }
-                    } catch(e) {
-                        console.warn('Gagal memuat riwayat pembelian:', e);
-                    } finally {
-                        this.isLoading = false;
                     }
+
+                    const total_weight = Number(o.total_weight || o.cartTotalWeight || 0);
+
+                    return {
+                        id: o.id || o._id || Math.random().toString(36).substring(2, 9),
+                        original_id: o.id || o._id || null,
+                        name,
+                        class_name,
+                        room,
+                        payment,
+                        items: parsedItems,
+                        total_weight,
+                        created_at,
+                        total_price
+                    };
+                },
+
+                async fetchOrders() {
+                    let rawList = [];
+
+                    // 1. Fetch from Supabase tables
+                    if (db) {
+                        const tableCandidates = ['orders', 'purchases', 'pesanan', 'riwayat_pesanan', 'transactions'];
+                        for (const tbl of tableCandidates) {
+                            try {
+                                const { data, error } = await db.from(tbl).select('*').order('id', { ascending: false });
+                                if (!error && Array.isArray(data) && data.length > 0) {
+                                    data.forEach(item => {
+                                        const norm = this.normalizeOrder(item);
+                                        if (norm) rawList.push(norm);
+                                    });
+                                }
+                            } catch(errTbl) {}
+                        }
+                    }
+
+                    // 2. Fetch from LocalStorage fallbacks
+                    const localKeys = ['nuha_orders', 'nuha_history', 'orders', 'purchases', 'nuha_delivery_orders'];
+                    localKeys.forEach(key => {
+                        try {
+                            const str = localStorage.getItem(key);
+                            if (str) {
+                                const parsed = JSON.parse(str);
+                                if (Array.isArray(parsed)) {
+                                    parsed.forEach(item => {
+                                        const norm = this.normalizeOrder(item);
+                                        if (norm) rawList.push(norm);
+                                    });
+                                }
+                            }
+                        } catch(e) {}
+                    });
+
+                    // 3. Deduplicate
+                    const map = new Map();
+                    rawList.forEach(item => {
+                        const uniqueKey = item.original_id ? `id_${item.original_id}` : `${item.name}_${item.class_name}_${item.room}_${item.total_price}_${item.created_at}`;
+                        if (!map.has(uniqueKey)) {
+                            map.set(uniqueKey, item);
+                        }
+                    });
+
+                    // 4. Filter out transactions older than 30 days (1 month auto-purge rule)
+                    const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+                    const now = Date.now();
+
+                    const validOrders = Array.from(map.values()).filter(item => {
+                        if (!item.created_at) return true;
+                        const itemTime = new Date(item.created_at).getTime();
+                        if (isNaN(itemTime)) return true;
+                        return (now - itemTime) <= thirtyDaysInMs;
+                    });
+
+                    // 5. Urutkan dari pesanan terbaru
+                    this.orders = validOrders.sort((a, b) => {
+                        const tA = new Date(a.created_at).getTime() || 0;
+                        const tB = new Date(b.created_at).getTime() || 0;
+                        return tB - tA;
+                    });
+                },
+
+                viewOrderDetails(order) {
+                    this.selectedOrderDetails = order;
+                    this.openOrderDetailModal = true;
                 },
 
                 exportToSpreadsheet() {
@@ -254,16 +319,24 @@
                         return;
                     }
 
-                    const exportData = list.map((item, index) => ({
-                        'No': index + 1,
-                        'Nama Pelanggan': item.name,
-                        'Kelas': item.class_name,
-                        'Kamar': item.room,
-                        'Kapan Belinya': item.created_at ? new Date(item.created_at).toLocaleString('id-ID', {
-                            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                        }) : '-',
-                        'Total Harga (Rp)': item.total_price
-                    }));
+                    const exportData = list.map((item, index) => {
+                        let itemsSummary = '-';
+                        if (Array.isArray(item.items) && item.items.length > 0) {
+                            itemsSummary = item.items.map(i => `${i.name || i.nama}${i.selectedVariant ? ' ('+i.selectedVariant+')' : ''} x${i.qty || 1}`).join(', ');
+                        }
+
+                        return {
+                            'No': index + 1,
+                            'Nama Pelanggan': item.name,
+                            'Kelas': item.class_name,
+                            'Kamar / Asrama': item.room,
+                            'Metode Pembayaran': item.payment === 'qris' ? 'QRIS Instant' : 'Transfer Bank',
+                            'Detail Item': itemsSummary,
+                            'Total Berat (g)': item.total_weight > 0 ? item.total_weight : '-',
+                            'Kapan Belinya': this.formatDate(item.created_at),
+                            'Total Harga (Rp)': item.total_price
+                        };
+                    });
 
                     const monthLabel = this.selectedMonth ? this.selectedMonth : 'Semua_Bulan';
 
@@ -273,9 +346,9 @@
                         XLSX.utils.book_append_sheet(workbook, worksheet, "Riwayat Pembelian");
                         XLSX.writeFile(workbook, `Riwayat_Pembelian_NUHA_${monthLabel}.xlsx`);
                     } else {
-                        let csvContent = "\uFEFFNo,Nama Pelanggan,Kelas,Kamar,Kapan Belinya,Total Harga\n";
+                        let csvContent = "\uFEFFNo,Nama Pelanggan,Kelas,Kamar,Metode Pembayaran,Detail Item,Total Berat,Kapan Belinya,Total Harga\n";
                         exportData.forEach(row => {
-                            csvContent += `"${row['No']}","${row['Nama Pelanggan']}","${row['Kelas']}","${row['Kamar']}","${row['Kapan Belinya']}","${row['Total Harga (Rp)']}"\n`;
+                            csvContent += `"${row['No']}","${row['Nama Pelanggan']}","${row['Kelas']}","${row['Kamar / Asrama']}","${row['Metode Pembayaran']}","${row['Detail Item']}","${row['Total Berat (g)']}","${row['Kapan Belinya']}","${row['Total Harga (Rp)']}"\n`;
                         });
                         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                         const link = document.createElement("a");
@@ -286,6 +359,19 @@
                         document.body.removeChild(link);
                     }
                     this.showToast('Spreadsheet riwayat berhasil diunduh!', 'success');
+                },
+
+                formatDate(dateStr) {
+                    if (!dateStr) return '-';
+                    try {
+                        const d = new Date(dateStr);
+                        if (isNaN(d.getTime())) return String(dateStr);
+                        return d.toLocaleString('id-ID', {
+                            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                        });
+                    } catch(e) {
+                        return String(dateStr);
+                    }
                 },
 
                 sanitizeImageUrl(rawUrl) {
@@ -323,7 +409,6 @@
                     return str;
                 },
 
-                // MANAJEMEN VARIAN FORM TAMBAH
                 addVariantRow() {
                     this.newProduct.variantsList.push({ name: '', price: '', image: '' });
                 },
@@ -339,7 +424,6 @@
                     });
                 },
 
-                // MANAJEMEN VARIAN FORM EDIT
                 addEditVariantRow() {
                     this.editForm.variantsList.push({ name: '', price: '', image: '' });
                 },
@@ -612,23 +696,28 @@
                 get filteredOrders() {
                     let items = [...this.orders];
                     
-                    // Filter per Bulan (YYYY-MM)
                     if (this.selectedMonth && this.selectedMonth !== 'Semua') {
                         items = items.filter(o => {
                             if (!o.created_at) return false;
-                            const d = new Date(o.created_at);
-                            const yearMonth = d.toISOString().slice(0, 7);
-                            return yearMonth === this.selectedMonth;
+                            try {
+                                const d = new Date(o.created_at);
+                                if (isNaN(d.getTime())) return true;
+                                const year = d.getFullYear();
+                                const month = String(d.getMonth() + 1).padStart(2, '0');
+                                const yearMonth = `${year}-${month}`;
+                                return yearMonth === this.selectedMonth;
+                            } catch(e) {
+                                return true;
+                            }
                         });
                     }
 
-                    // Filter pencarian nama, kelas, atau kamar
                     if (this.searchOrderQuery && this.searchOrderQuery.trim()) {
                         const q = this.searchOrderQuery.toLowerCase().trim();
                         items = items.filter(o => 
-                            (o.name && o.name.toLowerCase().includes(q)) ||
-                            (o.class_name && o.class_name.toLowerCase().includes(q)) ||
-                            (o.room && o.room.toLowerCase().includes(q))
+                            (o.name && String(o.name).toLowerCase().includes(q)) ||
+                            (o.class_name && String(o.class_name).toLowerCase().includes(q)) ||
+                            (o.room && String(o.room).toLowerCase().includes(q))
                         );
                     }
                     return items;
@@ -754,7 +843,7 @@
 
                 <button @click="fetchProducts(); fetchTestimonials(); fetchOrders()" class="self-end sm:self-auto text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-xl transition-colors flex items-center gap-1">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    <span>Refresh</span>
+                    <span>Refresh Data</span>
                 </button>
             </div>
 
@@ -972,7 +1061,7 @@
                                         </td>
                                         <td class="p-4 text-slate-700 font-medium max-w-md break-words" x-text="t.comment || '-'"></td>
                                         <td class="p-4 text-slate-500 whitespace-nowrap" x-text="t.product_name || '-'"></td>
-                                        <td class="p-4 text-slate-400 text-[11px] whitespace-nowrap" x-text="t.created_at ? new Date(t.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'"></td>
+                                        <td class="p-4 text-slate-400 text-[11px] whitespace-nowrap" x-text="formatDate(t.created_at)"></td>
                                         <td class="p-4 text-right whitespace-nowrap">
                                             <button @click="promptDeleteTestimonial(t)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1 text-xs">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -1003,7 +1092,7 @@
                         </div>
                         <div>
                             <span class="font-bold block text-emerald-950">Pembersihan Otomatis 1 Bulan (30 Hari)</span>
-                            <span class="text-emerald-700">Riwayat transaksi yang berumur lebih dari 30 hari akan secara otomatis dihapus oleh sistem.</span>
+                            <span class="text-emerald-700">Riwayat transaksi yang berumur lebih dari 30 hari secara otomatis dibersihkan.</span>
                         </div>
                     </div>
                     <div class="bg-white px-4 py-2 rounded-xl border border-emerald-200/80 font-bold text-xs flex items-center gap-2 self-stretch sm:self-auto justify-between">
@@ -1019,6 +1108,9 @@
                         
                         <div class="flex items-center gap-2 w-full sm:w-auto">
                             <span class="text-xs font-bold text-slate-500 whitespace-nowrap">Bulan:</span>
+                            <button @click="selectedMonth = 'Semua'" :class="selectedMonth === 'Semua' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-colors">
+                                Semua Bulan
+                            </button>
                             <input type="month" x-model="selectedMonth" class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-slate-50">
                         </div>
                     </div>
@@ -1038,7 +1130,8 @@
                                     <th class="p-4 w-12 text-center">No</th>
                                     <th class="p-4">Nama Pelanggan</th>
                                     <th class="p-4">Kelas</th>
-                                    <th class="p-4">Kamar</th>
+                                    <th class="p-4">Kamar / Asrama</th>
+                                    <th class="p-4">Pembayaran</th>
                                     <th class="p-4">Kapan Belinya</th>
                                     <th class="p-4">Total Harga</th>
                                     <th class="p-4 text-right">Aksi</th>
@@ -1051,10 +1144,19 @@
                                         <td class="p-4 font-bold text-slate-900 whitespace-nowrap" x-text="o.name"></td>
                                         <td class="p-4 whitespace-nowrap font-semibold text-slate-700" x-text="o.class_name"></td>
                                         <td class="p-4 whitespace-nowrap font-semibold text-slate-700" x-text="o.room"></td>
-                                        <td class="p-4 text-slate-600 text-[11px] whitespace-nowrap" x-text="o.created_at ? new Date(o.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'"></td>
+                                        <td class="p-4 whitespace-nowrap">
+                                            <span :class="o.payment === 'qris' ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'" class="px-2.5 py-1 rounded-md text-[10px] font-bold border">
+                                                <span x-text="o.payment === 'qris' ? 'QRIS Instant' : 'Transfer Bank'"></span>
+                                            </span>
+                                        </td>
+                                        <td class="p-4 text-slate-600 text-[11px] whitespace-nowrap" x-text="formatDate(o.created_at)"></td>
                                         <td class="p-4 font-bold text-emerald-600 whitespace-nowrap" x-text="formatRupiah(o.total_price)"></td>
-                                        <td class="p-4 text-right whitespace-nowrap">
-                                            <button @click="promptDeleteOrder(o)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1 text-xs">
+                                        <td class="p-4 text-right whitespace-nowrap space-x-1.5">
+                                            <button @click="viewOrderDetails(o)" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1 text-xs">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                <span>Detail</span>
+                                            </button>
+                                            <button @click="promptDeleteOrder(o)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1 text-xs">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                                 <span>Hapus</span>
                                             </button>
@@ -1063,8 +1165,8 @@
                                 </template>
 
                                 <tr x-show="filteredOrders.length === 0">
-                                    <td colspan="7" class="p-12 text-center text-slate-400 font-bold">
-                                        Belum ada riwayat pembelian untuk bulan ini.
+                                    <td colspan="8" class="p-12 text-center text-slate-400 font-bold">
+                                        Belum ada riwayat pembelian ditemukan.
                                     </td>
                                 </tr>
                             </tbody>
@@ -1183,6 +1285,92 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- MODAL DETAIL PESANAN (RINCIAN DARI KANTONG BELANJA & CHECKOUT) -->
+    <div x-show="openOrderDetailModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto">
+        <div @click.outside="openOrderDetailModal = false" class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-8">
+            <button @click="openOrderDetailModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-black text-slate-900">Rincian Transaksi Pesanan</h3>
+                    <p class="text-xs text-slate-500">Data pemesanan yang masuk ke sistem</p>
+                </div>
+            </div>
+
+            <template x-if="selectedOrderDetails">
+                <div class="space-y-4">
+                    <!-- INFORMASI PEMESAN -->
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Nama Pemesan:</span>
+                            <span class="font-bold text-slate-900" x-text="selectedOrderDetails.name"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Kelas:</span>
+                            <span class="font-bold text-slate-800" x-text="selectedOrderDetails.class_name"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Asrama / Kamar:</span>
+                            <span class="font-bold text-slate-800" x-text="selectedOrderDetails.room"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Metode Pembayaran:</span>
+                            <span class="font-bold text-teal-700 uppercase" x-text="selectedOrderDetails.payment === 'qris' ? 'QRIS Instant' : 'Transfer Bank'"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Waktu Pembelian:</span>
+                            <span class="font-semibold text-slate-700" x-text="formatDate(selectedOrderDetails.created_at)"></span>
+                        </div>
+                    </div>
+
+                    <!-- TABEL ITEM PESANAN -->
+                    <div class="space-y-2">
+                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Item Dipesan</h4>
+                        <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden max-h-48 overflow-y-auto">
+                            <template x-if="Array.isArray(selectedOrderDetails.items) && selectedOrderDetails.items.length > 0">
+                                <div class="divide-y divide-slate-100">
+                                    <template x-for="(it, idx) in selectedOrderDetails.items" :key="idx">
+                                        <div class="p-3 flex items-center justify-between text-xs">
+                                            <div>
+                                                <p class="font-bold text-slate-900" x-text="it.name || it.nama"></p>
+                                                <p x-show="it.selectedVariant" class="text-[10px] text-teal-600 font-semibold" x-text="'Varian: ' + it.selectedVariant"></p>
+                                            </div>
+                                            <div class="text-right">
+                                                <p class="font-bold text-slate-800" x-text="'x' + (it.qty || 1) + ' (' + formatRupiah((it.price || 0) * (it.qty || 1)) + ')'"></p>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="!Array.isArray(selectedOrderDetails.items) || selectedOrderDetails.items.length === 0">
+                                <div class="p-4 text-center text-xs text-slate-400 italic">
+                                    Detail rincian barang tidak disertakan secara spesifik pada data ini.
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- RINGKASAN TAGIHAN -->
+                    <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between text-sm font-bold text-emerald-950">
+                        <span>Total Tagihan Pesanan:</span>
+                        <span class="text-emerald-700 text-lg font-black" x-text="formatRupiah(selectedOrderDetails.total_price)"></span>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button @click="openOrderDetailModal = false" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors">
+                            Tutup Detail
+                        </button>
+                    </div>
+                </div>
+            </template>
         </div>
     </div>
 
