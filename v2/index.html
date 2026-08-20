@@ -1,0 +1,2745 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuha Delivery V2</title>
+    
+    <!-- Favicon Logo Transparan -->
+    <link rel="icon" type="image/png" href="https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- SheetJS (XLSX) CDN for direct Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- Google Fonts (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        [x-cloak] { 
+            display: none !important; 
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+            color: #1e293b;
+        }
+        .typewriter-cursor {
+            animation: blink 0.8s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .scrollbar-none::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-none {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+
+    <script>
+        // WebSocket safety fallback
+        if (typeof window !== 'undefined' && window.WebSocket) {
+            const OriginalWebSocket = window.WebSocket;
+            window.WebSocket = function(url, protocols) {
+                try {
+                    return new OriginalWebSocket(url, protocols);
+                } catch (e) {
+                    return {
+                        addEventListener: function() {},
+                        removeEventListener: function() {},
+                        send: function() {},
+                        close: function() {},
+                        readyState: 3
+                    };
+                }
+            };
+            window.WebSocket.prototype = OriginalWebSocket.prototype;
+            window.WebSocket.CONNECTING = 0;
+            window.WebSocket.OPEN = 1;
+            window.WebSocket.CLOSING = 2;
+            window.WebSocket.CLOSED = 3;
+        }
+
+        // Supabase Initialization
+        const SUPABASE_URL = 'https://hygkpfksrjzmlptbvngl.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5Z2twZmtzcmp6bWxwdGJ2bmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNjU1NTQsImV4cCI6MjEwMTg0MTU1NH0.Kr7T5I_CON3KSJgLdNRW2cbhhkPb_ABSGy4J4xNXGXA';
+        let db = null;
+        try {
+            if (typeof supabase !== 'undefined' && supabase.createClient) {
+                db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+        } catch(e) {
+            console.warn('Supabase initialization warning:', e);
+        }
+
+        function nuhaApp() {
+            const defaultLogo = 'https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png';
+            const defaultHeroBg = 'https://i.ibb.co.com/rK2xSmFL/Chat-GPT-Image-10-Agu-2026-08-29-41.png';
+            
+            return {
+                logoUrl: localStorage.getItem('nuha_logo_url') || defaultLogo,
+                heroBgUrl: localStorage.getItem('nuha_hero_bg') || defaultHeroBg,
+                heroTypedText: '',
+                heroSubheadline: localStorage.getItem('nuha_hero_subheadline') || 'Saat ini kami sedang menambah daftar menu lebih banyak, silahkan hubungi admin untuk request!!',
+                googleSheetUrl: localStorage.getItem('nuha_google_sheet_url') || '',
+                openEditHeroModal: false,
+                openGoogleSheetSettingsModal: false,
+
+                // HERO SLIDER STATE
+                currentHeroSlide: 0,
+                heroSlides: [
+                    {
+                        type: 'welcome',
+                        bgUrl: localStorage.getItem('nuha_hero_bg') || defaultHeroBg
+                    },
+                    {
+                        type: 'image',
+                        imageUrl: 'https://www.upload.ee/image/19665862/ChatGPT_Image_19_Agu_2026__19.04.19.png',
+                        title: 'Promo Special'
+                    },
+                    {
+                        type: 'image',
+                        imageUrl: 'https://www.upload.ee/image/19666417/WhatsApp_Image_2026-08-19_at_21.24.29.jpeg',
+                        title: 'Slide Tambahan'
+                    }
+                ],
+                heroSliderTimer: null,
+
+                infaqModalOpen: false,
+                showQrisModal: false,
+                infaqPromptShow: false,
+                infaqPromptHideTimer: null,
+                hasScrolledDown: false,
+
+                searchQuery: '',
+                searchFocused: false,
+                mobileMenuOpen: false,
+                cartDrawerOpen: false,
+                openCheckoutModal: false,
+                showOrderSuccessModal: false,
+                showOrdersAdminModal: false,
+                quickViewModal: false,
+                openAuthModal: false,
+                isSubmittingOrder: false,
+
+                lastCompletedOrder: null,
+                ordersList: [],
+
+                confirmModal: {
+                    show: false,
+                    title: '',
+                    message: '',
+                    action: null
+                },
+
+                categories: [
+                    { id: 1, name: 'Minuman' },
+                    { id: 2, name: 'Kudapan' },
+                    { id: 3, name: 'Makanan Berat' },
+                    { id: 4, name: 'Kebutuhan Pribadi' }
+                ],
+                selectedCategory: 'Semua',
+                showAllCatalogView: false,
+                selectedCatalogCategory: 'Semua',
+                catalogSort: 'default',
+                minPrice: null,
+                maxPrice: null,
+
+                authTab: 'customer',
+                customerAuthMode: 'login',
+                customerForm: { username: '', password: '' },
+                customerRegForm: { username: '', phone: '', password: '' },
+                adminForm: { username: '', password: '' },
+                isAdminLoggedIn: localStorage.getItem('nuha_admin_logged_in') === 'true',
+                isCustomerLoggedIn: !!localStorage.getItem('nuha_customer_name'),
+                loggedInCustomerName: localStorage.getItem('nuha_customer_name') || '',
+
+                products: [],
+                cart: [],
+                cartNotification: { show: false, product: null, variant: '', image: '', timer: null },
+                
+                newProduct: {
+                    name: '',
+                    category: 'Minuman',
+                    price: '',
+                    stock: 28,
+                    weight: '',
+                    image: '',
+                    quickVariantsInput: '',
+                    variantsList: [{ name: '', price: '', image: '' }]
+                },
+                selectedProduct: null,
+                activeVariantChoice: null,
+                variantModalQty: 1,
+
+                checkoutForm: {
+                    nama: '',
+                    kelas: '',
+                    asrama: '',
+                    payment: 'cash' // Default Cash / Tunai
+                },
+
+                reviews: [],
+                newReview: { name: '', rating: 0, comment: '' },
+                toast: { show: false, message: '' },
+
+                openEditProductModal: false,
+                editingProduct: null,
+                editProductForm: {
+                    id: null,
+                    name: '',
+                    category: 'Minuman',
+                    price: '',
+                    stock: 28,
+                    weight: '',
+                    image: '',
+                    quickVariantsInput: '',
+                    variantsList: [{ name: '', price: '', image: '' }]
+                },
+
+                openConfirmModal(title, message, callback) {
+                    this.confirmModal.title = title;
+                    this.confirmModal.message = message;
+                    this.confirmModal.action = callback;
+                    this.confirmModal.show = true;
+                },
+
+                executeConfirmAction() {
+                    if (typeof this.confirmModal.action === 'function') {
+                        this.confirmModal.action();
+                    }
+                    this.confirmModal.show = false;
+                },
+
+                openEditProduct(product) {
+                    this.editingProduct = product;
+                    const vars = Array.isArray(product.variants) 
+                        ? product.variants.map(v => typeof v === 'object' ? { name: v.name || '', price: v.price ?? '', image: v.image || '' } : { name: String(v), price: '', image: '' })
+                        : [];
+                    
+                    this.editProductForm = {
+                        id: product.id,
+                        name: product.name || '',
+                        category: product.category || 'Minuman',
+                        price: product.price || 0,
+                        stock: product.stock ?? 28,
+                        weight: (product.weight && Number(product.weight) > 0) ? product.weight : '',
+                        image: product.image || '',
+                        quickVariantsInput: vars.map(v => v.name).join(', '),
+                        variantsList: vars.length > 0 ? vars : [{ name: '', price: '', image: '' }]
+                    };
+                    this.openEditProductModal = true;
+                },
+
+                getVariantsLocalBackup() {
+                    try {
+                        return JSON.parse(localStorage.getItem('nuha_variants_backup') || '{}');
+                    } catch(e) {
+                        return {};
+                    }
+                },
+
+                saveVariantLocalBackup(id, name, variants) {
+                    try {
+                        const map = this.getVariantsLocalBackup();
+                        if (id) map[String(id)] = variants;
+                        if (name) map[String(name).toLowerCase().trim()] = variants;
+                        localStorage.setItem('nuha_variants_backup', JSON.stringify(map));
+                    } catch(e) {}
+                },
+
+                removeVariantLocalBackup(id, name) {
+                    try {
+                        const map = this.getVariantsLocalBackup();
+                        if (id) delete map[String(id)];
+                        if (name) delete map[String(name).toLowerCase().trim()];
+                        localStorage.setItem('nuha_variants_backup', JSON.stringify(map));
+                    } catch(e) {}
+                },
+
+                addEditVariantRow() {
+                    this.editProductForm.variantsList.push({ name: '', price: '', image: '' });
+                },
+
+                removeEditVariantRow(idx) {
+                    this.editProductForm.variantsList.splice(idx, 1);
+                },
+
+                parseEditQuickVariants() {
+                    if (!this.editProductForm.quickVariantsInput) return;
+                    const names = this.editProductForm.quickVariantsInput.split(',').map(n => n.trim()).filter(n => n);
+                    this.editProductForm.variantsList = names.map(n => {
+                        const existing = this.editProductForm.variantsList.find(v => v.name === n);
+                        return existing ? existing : { name: n, price: '', image: '' };
+                    });
+                },
+
+                getProductsByCategory(catName, limit = null) {
+                    if (!catName) return [];
+                    const items = (this.products || []).filter(p => p.category === catName);
+                    return limit ? items.slice(0, limit) : items;
+                },
+
+                getActiveVariantPrice() {
+                    if (!this.selectedProduct) return 0;
+                    if (this.activeVariantChoice && this.activeVariantChoice.price !== '' && !isNaN(this.activeVariantChoice.price) && Number(this.activeVariantChoice.price) > 0) {
+                        return Number(this.activeVariantChoice.price);
+                    }
+                    return Number(this.selectedProduct.price || 0);
+                },
+
+                getProductMinPrice(product) {
+                    if (!product) return 0;
+                    let basePrice = Number(product.price || 0);
+                    if (Array.isArray(product.variants) && product.variants.length > 0) {
+                        const varPrices = product.variants
+                            .map(v => typeof v === 'object' && v.price !== '' && !isNaN(v.price) && Number(v.price) > 0 ? Number(v.price) : basePrice)
+                            .filter(p => p > 0);
+                        if (varPrices.length > 0) {
+                            return Math.min(...varPrices);
+                        }
+                    }
+                    return basePrice;
+                },
+
+                getModalDisplayImage() {
+                    if (this.activeVariantChoice && this.activeVariantChoice.image) {
+                        return this.sanitizeImageUrl(this.activeVariantChoice.image);
+                    }
+                    return this.selectedProduct ? this.sanitizeImageUrl(this.selectedProduct.image) : '';
+                },
+
+                deleteProduct(id) {
+                    this.openConfirmModal('Hapus Produk', 'Apakah Anda yakin ingin menghapus produk ini secara permanen?', async () => {
+                        try {
+                            if (db) {
+                                await db.from('products').delete().eq('id', id);
+                            }
+                            this.removeVariantLocalBackup(id, null);
+                            this.products = this.products.filter(p => p.id !== id);
+                            this.showToast('Produk berhasil dihapus!');
+                        } catch(e) {
+                            console.error('Gagal menghapus produk:', e);
+                            this.showToast('Gagal menghapus produk!');
+                        }
+                    });
+                },
+
+                deleteReview(id) {
+                    this.openConfirmModal('Hapus Ulasan', 'Apakah Anda yakin ingin menghapus ulasan ini?', async () => {
+                        try {
+                            if (db) {
+                                await db.from('reviews').delete().eq('id', id);
+                            }
+                            this.reviews = this.reviews.filter(r => r.id !== id);
+                            this.showToast('Ulasan berhasil dihapus!');
+                        } catch(e) {
+                            this.showToast('Gagal menghapus ulasan!');
+                        }
+                    });
+                },
+
+                async executeSupabaseProductSave(isEdit, data, productId = null) {
+                    if (!db) throw new Error('Koneksi Supabase tidak terhubung!');
+
+                    let payload = { ...data };
+                    let lastError = null;
+
+                    for (let attempt = 0; attempt < 6; attempt++) {
+                        let res;
+                        if (isEdit) {
+                            res = await db.from('products').update(payload).eq('id', productId).select();
+                        } else {
+                            res = await db.from('products').insert([payload]).select();
+                        }
+
+                        if (!res.error) {
+                            if (data.variants && data.variants.length > 0) {
+                                const savedId = isEdit ? productId : (res.data && res.data[0] ? res.data[0].id : null);
+                                this.saveVariantLocalBackup(savedId, data.name, data.variants);
+                            }
+                            return res.data;
+                        }
+
+                        lastError = res.error;
+
+                        if (lastError.code === 'PGRST204' || (lastError.message && lastError.message.includes('Could not find the'))) {
+                            const match = lastError.message.match(/Could not find the '([^']+)' column/i);
+                            if (match && match[1] && payload.hasOwnProperty(match[1])) {
+                                delete payload[match[1]];
+                                continue;
+                            }
+                        }
+
+                        if (lastError.message && (lastError.message.includes('text') || lastError.message.includes('json') || lastError.message.includes('type'))) {
+                            if (payload.hasOwnProperty('variants') && Array.isArray(payload.variants)) {
+                                payload.variants = JSON.stringify(payload.variants);
+                                continue;
+                            }
+                        }
+
+                        break;
+                    }
+
+                    throw lastError || new Error('Gagal menyimpan data ke Supabase');
+                },
+
+                async updateProduct() {
+                    if (!this.editProductForm.name || !this.editProductForm.price) {
+                        this.showToast('Nama dan harga produk wajib diisi!');
+                        return;
+                    }
+
+                    const cleanedImageUrl = this.sanitizeImageUrl(this.editProductForm.image);
+                    const parsedVariants = this.editProductForm.variantsList
+                        .filter(v => v.name && v.name.trim())
+                        .map(v => ({
+                            name: v.name.trim(),
+                            price: (v.price !== '' && !isNaN(v.price) && Number(v.price) > 0) ? Number(v.price) : '',
+                            image: this.sanitizeImageUrl(v.image)
+                        }));
+
+                    const updatedData = {
+                        name: this.editProductForm.name.trim(),
+                        category: this.editProductForm.category,
+                        price: Number(this.editProductForm.price),
+                        stock: Number(this.editProductForm.stock || 28),
+                        weight: (this.editProductForm.weight && Number(this.editProductForm.weight) > 0) ? Number(this.editProductForm.weight) : null,
+                        image: cleanedImageUrl || 'https://placehold.co/400x400/0d9488/ffffff?text=' + encodeURIComponent(this.editProductForm.name.trim()),
+                        variants: parsedVariants
+                    };
+
+                    try {
+                        if (db && this.editProductForm.id) {
+                            await this.executeSupabaseProductSave(true, updatedData, this.editProductForm.id);
+                            this.showToast('Produk & varian berhasil diperbarui!');
+                            await this.fetchProducts();
+                            this.openEditProductModal = false;
+                        } else {
+                            this.showToast('Koneksi Supabase tidak terhubung!');
+                        }
+                    } catch (e) {
+                        console.error('Gagal update database:', e);
+                        this.showToast('Gagal simpan ke Supabase: ' + (e.message || 'Terjadi kesalahan'));
+                    }
+                },
+
+                init() {
+                    this.initApp();
+                },
+
+                initApp() {
+                    this.startHeroTypewriter();
+                    this.startHeroAutoSlide();
+                    this.fetchProducts();
+                    this.fetchReviews();
+                    this.fetchOrders();
+
+                    this.infaqModalOpen = false;
+
+                    setTimeout(() => {
+                        this.triggerInfaqPrompt();
+                    }, 1200);
+
+                    window.addEventListener('scroll', () => {
+                        const scrollY = window.scrollY || document.documentElement.scrollTop;
+                        if (scrollY > 300) {
+                            this.hasScrolledDown = true;
+                        } else if (scrollY < 50 && this.hasScrolledDown) {
+                            this.hasScrolledDown = false;
+                            this.triggerInfaqPrompt();
+                        }
+                    });
+                },
+
+                nextHeroSlide() {
+                    this.currentHeroSlide = (this.currentHeroSlide + 1) % this.heroSlides.length;
+                },
+
+                prevHeroSlide() {
+                    this.currentHeroSlide = (this.currentHeroSlide - 1 + this.heroSlides.length) % this.heroSlides.length;
+                },
+
+                goToHeroSlide(idx) {
+                    this.currentHeroSlide = idx;
+                    this.resetHeroAutoSlide();
+                },
+
+                startHeroAutoSlide() {
+                    if (this.heroSliderTimer) clearInterval(this.heroSliderTimer);
+                    this.heroSliderTimer = setInterval(() => {
+                        this.nextHeroSlide();
+                    }, 6000);
+                },
+
+                resetHeroAutoSlide() {
+                    this.startHeroAutoSlide();
+                },
+
+                get searchResults() {
+                    if (!this.searchQuery || !this.searchQuery.trim()) return [];
+                    const q = this.searchQuery.toLowerCase().trim();
+                    return (this.products || []).filter(p => {
+                        const nameMatch = p.name && p.name.toLowerCase().includes(q);
+                        const catMatch = p.category && p.category.toLowerCase().includes(q);
+                        const variantMatch = Array.isArray(p.variants) && p.variants.some(v => (v.name || (typeof v === 'string' ? v : '')).toLowerCase().includes(q));
+                        return nameMatch || catMatch || variantMatch;
+                    });
+                },
+
+                toggleShowAllCatalog() {
+                    this.showAllCatalogView = !this.showAllCatalogView;
+                    if (this.showAllCatalogView) {
+                        this.selectedCatalogCategory = 'Semua';
+                    }
+                },
+
+                openQuickView(product) {
+                    this.selectedProduct = product;
+                    if (Array.isArray(product.variants) && product.variants.length > 0) {
+                        const firstV = product.variants[0];
+                        this.activeVariantChoice = typeof firstV === 'object' 
+                            ? { name: firstV.name || '', price: firstV.price ?? '', image: firstV.image || '' }
+                            : { name: String(firstV), price: '', image: '' };
+                    } else {
+                        this.activeVariantChoice = null;
+                    }
+                    this.variantModalQty = 1;
+                    this.quickViewModal = true;
+                },
+
+                selectVariant(v) {
+                    if (typeof v === 'object' && v !== null) {
+                        this.activeVariantChoice = { name: v.name || '', price: v.price ?? '', image: v.image || '' };
+                    } else {
+                        this.activeVariantChoice = { name: String(v || ''), price: '', image: '' };
+                    }
+                },
+
+                triggerInfaqPrompt() {
+                    if (this.infaqModalOpen) return;
+                    this.infaqPromptShow = true;
+
+                    if (this.infaqPromptHideTimer) clearTimeout(this.infaqPromptHideTimer);
+                    this.infaqPromptHideTimer = setTimeout(() => {
+                        this.infaqPromptShow = false;
+                    }, 8000);
+                },
+
+                copyRekening(rekNumber) {
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(rekNumber);
+                    } else {
+                        const el = document.createElement('textarea');
+                        el.value = rekNumber;
+                        document.body.appendChild(el);
+                        el.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(el);
+                    }
+                    this.showToast('Nomor Rekening BSI berhasil disalin!');
+                },
+
+                infaqViaWA() {
+                    const text = encodeURIComponent('Assalamualaikum *Lembaga Infaq Nurul Hayah*, saya telah berinfaq ke nomor rekening BSI dari website NUHADELIVERY. Terimakasih!');
+                    window.open(`https://wa.me/6285859087683?text=${text}`, '_blank');
+                },
+
+                startHeroTypewriter() {
+                    const headlines = [
+                        "Selamat datang di NUHA DELIVERY"
+                    ];
+                    let hIdx = 0;
+                    let charIdx = 0;
+                    let isDeleting = false;
+
+                    const type = () => {
+                        const currentHeadline = headlines[hIdx];
+                        if (isDeleting) {
+                            this.heroTypedText = currentHeadline.substring(0, charIdx - 1);
+                            charIdx--;
+                        } else {
+                            this.heroTypedText = currentHeadline.substring(0, charIdx + 1);
+                            charIdx++;
+                        }
+
+                        let speed = isDeleting ? 40 : 80;
+
+                        if (!isDeleting && charIdx === currentHeadline.length) {
+                            speed = 2200;
+                            isDeleting = true;
+                        } else if (isDeleting && charIdx === 0) {
+                            isDeleting = false;
+                            hIdx = (hIdx + 1) % headlines.length;
+                            speed = 500;
+                        }
+
+                        setTimeout(type, speed);
+                    };
+                    type();
+                },
+
+                async fetchProducts() {
+                    if (!db) return;
+                    try {
+                        const { data, error } = await db
+                            .from('products')
+                            .select('*')
+                            .order('id', { ascending: false });
+
+                        if (!error && data) {
+                            const localBackup = this.getVariantsLocalBackup();
+                            this.products = data.map(p => {
+                                let parsedVars = [];
+                                if (p.variants) {
+                                    if (Array.isArray(p.variants)) {
+                                        parsedVars = p.variants;
+                                    } else if (typeof p.variants === 'string') {
+                                        try { parsedVars = JSON.parse(p.variants); } catch(e) { parsedVars = []; }
+                                    }
+                                }
+
+                                if ((!parsedVars || parsedVars.length === 0)) {
+                                    const backup = localBackup[String(p.id)] || localBackup[String(p.name).toLowerCase().trim()];
+                                    if (backup && Array.isArray(backup)) {
+                                        parsedVars = backup;
+                                    }
+                                }
+
+                                return {
+                                    ...p,
+                                    price: Number(p.price || 0),
+                                    stock: Number(p.stock ?? 28),
+                                    weight: (p.weight && Number(p.weight) > 0) ? Number(p.weight) : null,
+                                    variants: parsedVars
+                                };
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Gagal memuat produk dari Supabase:', e.message);
+                    }
+                },
+
+                async fetchReviews() {
+                    if (!db) return;
+                    try {
+                        const { data, error } = await db
+                            .from('reviews')
+                            .select('*')
+                            .order('id', { ascending: false });
+
+                        if (!error && data) {
+                            this.reviews = data
+                                .filter(r => r.name !== 'Siti Rahma' && r.name !== 'Ahmad Subagja')
+                                .map(r => ({
+                                    ...r,
+                                    rating: Number(r.rating || 5)
+                                }));
+                        }
+                    } catch (e) {
+                        console.warn('Gagal memuat ulasan dari Supabase:', e.message);
+                    }
+                },
+
+                async fetchOrders() {
+                    try {
+                        let localOrders = [];
+                        try {
+                            localOrders = JSON.parse(localStorage.getItem('nuha_local_orders') || '[]');
+                        } catch(e){}
+
+                        if (db) {
+                            const { data, error } = await db.from('orders').select('*').order('created_at', { ascending: false });
+                            if (!error && data) {
+                                this.ordersList = data;
+                                return;
+                            }
+                        }
+                        this.ordersList = localOrders;
+                    } catch(e) {
+                        console.warn('Fetch orders notice:', e);
+                    }
+                },
+
+                openCatalogForCategory(catName) {
+                    this.selectedCatalogCategory = catName;
+                    this.showAllCatalogView = true;
+                    this.scrollToSection('produk');
+                },
+
+                get filteredCatalogProducts() {
+                    let items = [...this.products];
+
+                    if (this.selectedCatalogCategory !== 'Semua') {
+                        items = items.filter(p => p.category === this.selectedCatalogCategory);
+                    }
+
+                    if (this.searchQuery && this.searchQuery.trim()) {
+                        const q = this.searchQuery.toLowerCase().trim();
+                        items = items.filter(p => {
+                            const nameMatch = p.name && p.name.toLowerCase().includes(q);
+                            const catMatch = p.category && p.category.toLowerCase().includes(q);
+                            const variantMatch = Array.isArray(p.variants) && p.variants.some(v => (v.name || (typeof v === 'string' ? v : '')).toLowerCase().includes(q));
+                            return nameMatch || catMatch || variantMatch;
+                        });
+                    }
+
+                    if (this.minPrice !== null && this.minPrice !== '') {
+                        items = items.filter(p => p.price >= Number(this.minPrice));
+                    }
+                    if (this.maxPrice !== null && this.maxPrice !== '') {
+                        items = items.filter(p => p.price <= Number(this.maxPrice));
+                    }
+
+                    if (this.catalogSort === 'low-to-high') {
+                        items.sort((a, b) => a.price - b.price);
+                    } else if (this.catalogSort === 'high-to-low') {
+                        items.sort((a, b) => b.price - a.price);
+                    }
+
+                    return items;
+                },
+
+                resetFilters() {
+                    this.searchQuery = '';
+                    this.minPrice = null;
+                    this.maxPrice = null;
+                    this.catalogSort = 'default';
+                },
+
+                scrollToCategory(catName) {
+                    this.showAllCatalogView = false;
+                    this.selectedCategory = catName;
+                    const catObj = this.categories.find(c => c.name === catName);
+                    if (catObj) {
+                        const el = document.getElementById('cat-' + catObj.id);
+                        if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    }
+                },
+
+                scrollToSection(secId) {
+                    const el = document.getElementById(secId);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                },
+
+                sanitizeImageUrl(rawUrl) {
+                    if (!rawUrl) return '';
+                    let str = String(rawUrl).trim();
+
+                    const bbMatch = str.match(/\[img\](.*?)\[\/img\]/i);
+                    if (bbMatch && bbMatch[1]) {
+                        str = bbMatch[1].trim();
+                    }
+                    
+                    const srcMatch = str.match(/src=["']([^"']+)["']/i);
+                    if (srcMatch && srcMatch[1]) {
+                        str = srcMatch[1].trim();
+                    } else {
+                        const hrefMatch = str.match(/href=["']([^"']+)["']/i);
+                        if (hrefMatch && hrefMatch[1] && (hrefMatch[1].includes('i.ibb.co') || hrefMatch[1].includes('i.postimg') || hrefMatch[1].match(/\.(jpg|jpeg|png|webp|gif)/i))) {
+                            str = hrefMatch[1].trim();
+                        }
+                    }
+
+                    const ibbMatch = str.match(/(https?:\/\/i\.ibb\.co(?:\.com)?\/[^\s"'<]+)/i);
+                    if (ibbMatch && ibbMatch[1]) {
+                        str = ibbMatch[1];
+                    }
+
+                    const postimgMatch = str.match(/(https?:\/\/i\.postimg\.cc\/[^\s"'<]+)/i);
+                    if (postimgMatch && postimgMatch[1]) {
+                        str = postimgMatch[1];
+                    }
+
+                    const driveMatch = str.match(/\/d\/([a-zA-Z0-9_-]+)/) || str.match(/id=([a-zA-Z0-9_-]+)/);
+                    if (driveMatch && driveMatch[1] && str.includes('drive.google')) {
+                        str = `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+                    }
+
+                    if (str.includes('dropbox.com')) {
+                        str = str.replace('dl=0', 'raw=1').replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+                    }
+
+                    return str;
+                },
+
+                addVariantRow() {
+                    this.newProduct.variantsList.push({ name: '', price: '', image: '' });
+                },
+
+                removeVariantRow(idx) {
+                    this.newProduct.variantsList.splice(idx, 1);
+                },
+
+                parseQuickVariants() {
+                    if (!this.newProduct.quickVariantsInput) return;
+                    const names = this.newProduct.quickVariantsInput.split(',').map(n => n.trim()).filter(n => n);
+                    
+                    this.newProduct.variantsList = names.map(n => {
+                        const existing = this.newProduct.variantsList.find(v => v.name === n);
+                        return existing ? existing : { name: n, price: '', image: '' };
+                    });
+                },
+
+                async addProduct() {
+                    if (!this.newProduct.name || !this.newProduct.price) {
+                        this.showToast('Nama dan harga produk wajib diisi!');
+                        return;
+                    }
+                    
+                    const cleanedImageUrl = this.sanitizeImageUrl(this.newProduct.image);
+
+                    const parsedVariants = this.newProduct.variantsList
+                        .filter(v => v.name && v.name.trim())
+                        .map(v => ({
+                            name: v.name.trim(),
+                            price: (v.price !== '' && !isNaN(v.price) && Number(v.price) > 0) ? Number(v.price) : '',
+                            image: this.sanitizeImageUrl(v.image)
+                        }));
+
+                    const newProductData = {
+                        name: this.newProduct.name.trim(),
+                        category: this.newProduct.category,
+                        price: Number(this.newProduct.price),
+                        stock: Number(this.newProduct.stock || 28),
+                        weight: (this.newProduct.weight && Number(this.newProduct.weight) > 0) ? Number(this.newProduct.weight) : null,
+                        image: cleanedImageUrl || 'https://placehold.co/400x400/0d9488/ffffff?text=' + encodeURIComponent(this.newProduct.name.trim()),
+                        variants: parsedVariants
+                    };
+
+                    try {
+                        if (db) {
+                            await this.executeSupabaseProductSave(false, newProductData);
+                            this.showToast('Produk & varian berhasil disimpan!');
+                            await this.fetchProducts();
+                        } else {
+                            this.showToast('Koneksi Supabase tidak terhubung!');
+                        }
+                    } catch(e) {
+                        console.error('Exception addProduct:', e);
+                        this.showToast('Gagal menyimpan ke Supabase: ' + (e.message || 'Terjadi kesalahan'));
+                    }
+
+                    this.newProduct.name = '';
+                    this.newProduct.price = '';
+                    this.newProduct.stock = 28;
+                    this.newProduct.weight = '';
+                    this.newProduct.image = '';
+                    this.newProduct.quickVariantsInput = '';
+                    this.newProduct.variantsList = [{ name: '', price: '', image: '' }];
+                },
+
+                confirmAddToCartWithVariant() {
+                    if (this.selectedProduct) {
+                        const variantName = this.activeVariantChoice ? this.activeVariantChoice.name : '';
+                        const variantImg = (this.activeVariantChoice && this.activeVariantChoice.image) ? this.activeVariantChoice.image : '';
+                        const customPrice = (this.activeVariantChoice && this.activeVariantChoice.price !== '' && !isNaN(this.activeVariantChoice.price) && Number(this.activeVariantChoice.price) > 0) 
+                            ? Number(this.activeVariantChoice.price) 
+                            : null;
+                            
+                        this.addToCart(this.selectedProduct, variantName, variantImg, this.variantModalQty, customPrice);
+                        this.quickViewModal = false;
+                    }
+                },
+
+                addToCart(product, variantName = '', variantImg = '', quantity = 1, customPrice = null) {
+                    const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+                    const chosenVariantObj = hasVariants ? (typeof product.variants[0] === 'object' ? product.variants[0] : { name: product.variants[0] }) : null;
+                    const chosenVariantName = variantName || (chosenVariantObj ? chosenVariantObj.name : '');
+                    const chosenImg = variantImg || (chosenVariantObj && chosenVariantObj.image ? chosenVariantObj.image : product.image);
+                    
+                    let finalUnitPrice = customPrice;
+                    if (!finalUnitPrice && hasVariants && chosenVariantObj && chosenVariantObj.price && Number(chosenVariantObj.price) > 0) {
+                        finalUnitPrice = Number(chosenVariantObj.price);
+                    }
+                    if (!finalUnitPrice) {
+                        finalUnitPrice = Number(product.price || 0);
+                    }
+
+                    const cartId = product.id + '-' + (chosenVariantName || 'default') + '-' + finalUnitPrice;
+                    
+                    const existing = this.cart.find(i => i.cartId === cartId);
+                    if (existing) {
+                        existing.qty += quantity;
+                    } else {
+                        this.cart.push({ 
+                            ...product, 
+                            price: finalUnitPrice,
+                            cartId: cartId,
+                            selectedVariant: chosenVariantName,
+                            image: this.sanitizeImageUrl(chosenImg),
+                            qty: quantity,
+                            weight: (product.weight && Number(product.weight) > 0) ? Number(product.weight) : null
+                        });
+                    }
+                    
+                    if (this.cartNotification.timer) clearTimeout(this.cartNotification.timer);
+                    this.cartNotification.product = product;
+                    this.cartNotification.variant = chosenVariantName;
+                    this.cartNotification.image = this.sanitizeImageUrl(chosenImg);
+                    this.cartNotification.show = true;
+                    this.cartNotification.timer = setTimeout(() => {
+                        this.cartNotification.show = false;
+                    }, 4000);
+                },
+
+                updateCartQty(cartId, delta) {
+                    const item = this.cart.find(i => i.cartId === cartId);
+                    if (item) {
+                        item.qty += delta;
+                        if (item.qty <= 0) {
+                            this.cart = this.cart.filter(i => i.cartId !== cartId);
+                        }
+                    }
+                },
+
+                get cartTotalItems() {
+                    return (this.cart || []).reduce((sum, item) => sum + item.qty, 0);
+                },
+
+                get cartSubtotal() {
+                    return (this.cart || []).reduce((sum, item) => sum + (item.price * item.qty), 0);
+                },
+
+                get cartTotalWeight() {
+                    return (this.cart || []).reduce((sum, item) => sum + ((item.weight && Number(item.weight) > 0 ? Number(item.weight) : 0) * item.qty), 0);
+                },
+
+                // DIRECT CHECKOUT LOGIC: RECORD TO EXCEL & DATABASE
+                async processDirectCheckout() {
+                    if (!this.checkoutForm.nama || !this.checkoutForm.nama.trim()) {
+                        this.showToast('Silakan isi Nama Pemesan / Anak terlebih dahulu!');
+                        return;
+                    }
+
+                    if (!this.checkoutForm.kelas || !this.checkoutForm.kelas.trim()) {
+                        this.showToast('Silakan isi Kelas terlebih dahulu!');
+                        return;
+                    }
+
+                    if (!this.checkoutForm.asrama || !this.checkoutForm.asrama.trim()) {
+                        this.showToast('Silakan isi Asrama / Kamar terlebih dahulu!');
+                        return;
+                    }
+
+                    if (!this.cart || this.cart.length === 0) {
+                        this.showToast('Keranjang belanja Anda masih kosong!');
+                        return;
+                    }
+
+                    this.isSubmittingOrder = true;
+                    const orderId = 'NH-' + Date.now().toString().slice(-6);
+                    const nowIso = new Date().toISOString();
+                    
+                    const paymentLabel = 'Cash / Tunai';
+
+                    // Format items list summary for Excel
+                    const itemsSummaryText = this.cart.map(item => {
+                        const vStr = item.selectedVariant ? ` (${item.selectedVariant})` : '';
+                        return `${item.name}${vStr} x${item.qty} = ${this.formatRupiah(item.price * item.qty)}`;
+                    }).join(' | ');
+
+                    const orderData = {
+                        order_id: orderId,
+                        name: this.checkoutForm.nama.trim(),
+                        class_name: this.checkoutForm.kelas.trim(),
+                        room: this.checkoutForm.asrama.trim(),
+                        payment: paymentLabel,
+                        items: this.cart,
+                        items_summary: itemsSummaryText,
+                        total_weight: this.cartTotalWeight,
+                        total_price: this.cartSubtotal,
+                        status: 'Pending',
+                        created_at: nowIso
+                    };
+
+                    // 1. SAVE TO SUPABASE OR LOCAL STORAGE
+                    try {
+                        if (db) {
+                            await db.from('orders').insert([orderData]);
+                        }
+                    } catch (err) {
+                        console.warn('Supabase order insert note:', err);
+                    }
+
+                    // Backup to localStorage for Excel Export
+                    try {
+                        let existingLocal = JSON.parse(localStorage.getItem('nuha_local_orders') || '[]');
+                        existingLocal.unshift(orderData);
+                        localStorage.setItem('nuha_local_orders', JSON.stringify(existingLocal));
+                    } catch(e) {}
+
+                    // 2. OPTIONAL: STREAM LIVE TO GOOGLE SHEET WEBHOOK IF CONFIGURED
+                    if (this.googleSheetUrl && this.googleSheetUrl.trim()) {
+                        try {
+                            const sheetPayload = {
+                                "Tanggal": new Date().toLocaleString('id-ID'),
+                                "ID Pesanan": orderId,
+                                "Nama Pemesan": orderData.name,
+                                "Kelas": orderData.class_name,
+                                "Asrama": orderData.room,
+                                "Daftar Pesanan": itemsSummaryText,
+                                "Total Berat (g)": orderData.total_weight,
+                                "Total Harga": orderData.total_price,
+                                "Metode Pembayaran": paymentLabel,
+                                "Status": "Pending"
+                            };
+
+                            fetch(this.googleSheetUrl.trim(), {
+                                method: 'POST',
+                                mode: 'no-cors',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(sheetPayload)
+                            }).catch(err => console.warn('Google Sheet live sync note:', err));
+                        } catch(e) {
+                            console.warn('Google Sheet trigger error:', e);
+                        }
+                    }
+
+                    // 3. COMPLETE ORDER & SHOW SUCCESS RECEIPT MODAL
+                    this.lastCompletedOrder = { ...orderData, cartSnapshot: [...this.cart] };
+                    this.ordersList.unshift(orderData);
+                    this.cart = []; // Clear Cart
+                    this.isSubmittingOrder = false;
+                    this.openCheckoutModal = false;
+                    this.showOrderSuccessModal = true;
+                    this.showToast('Pesanan berhasil dicatat & masuk ke Rekap Excel!');
+                },
+
+                saveGoogleSheetSettings() {
+                    localStorage.setItem('nuha_google_sheet_url', this.googleSheetUrl.trim());
+                    this.openGoogleSheetSettingsModal = false;
+                    this.showToast('Pengaturan Google Sheet Webhook berhasil disimpan!');
+                },
+
+                // EXPORT ALL ORDERS DIRECTLY TO AN EXCEL (.XLSX) FILE
+                exportOrdersToExcel() {
+                    let ordersToExport = this.ordersList;
+                    if (!ordersToExport || ordersToExport.length === 0) {
+                        try {
+                            ordersToExport = JSON.parse(localStorage.getItem('nuha_local_orders') || '[]');
+                        } catch(e){}
+                    }
+
+                    if (!ordersToExport || ordersToExport.length === 0) {
+                        this.showToast('Belum ada data pesanan masuk untuk diexport!');
+                        return;
+                    }
+
+                    const excelRows = ordersToExport.map((o, idx) => {
+                        let itemsStr = '';
+                        if (typeof o.items_summary === 'string' && o.items_summary) {
+                            itemsStr = o.items_summary;
+                        } else if (Array.isArray(o.items)) {
+                            itemsStr = o.items.map(i => `${i.name}${i.selectedVariant ? ' ('+i.selectedVariant+')':''} x${i.qty}`).join(', ');
+                        }
+
+                        return {
+                            "No": idx + 1,
+                            "ID Pesanan": o.order_id || ('NH-' + (o.id || idx + 1)),
+                            "Waktu Pemesanan": o.created_at ? new Date(o.created_at).toLocaleString('id-ID') : '-',
+                            "Nama Pemesan": o.name || '-',
+                            "Kelas": o.class_name || '-',
+                            "Asrama / Kamar": o.room || '-',
+                            "Rincian Pesanan": itemsStr,
+                            "Total Berat (Gram)": o.total_weight || 0,
+                            "Total Bayar (Rp)": o.total_price || 0,
+                            "Metode Pembayaran": o.payment || '-',
+                            "Status": o.status || 'Berhasil'
+                        };
+                    });
+
+                    // Create Worksheet using SheetJS
+                    const worksheet = XLSX.utils.json_to_sheet(excelRows);
+                    
+                    // Auto-set Column Widths
+                    const colWidths = [
+                        { wch: 5 },  // No
+                        { wch: 15 }, // ID Pesanan
+                        { wch: 22 }, // Waktu Pemesanan
+                        { wch: 22 }, // Nama Pemesan
+                        { wch: 14 }, // Kelas
+                        { wch: 18 }, // Asrama / Kamar
+                        { wch: 45 }, // Rincian Pesanan
+                        { wch: 18 }, // Total Berat
+                        { wch: 18 }, // Total Bayar
+                        { wch: 18 }, // Metode Pembayaran
+                        { wch: 12 }  // Status
+                    ];
+                    worksheet['!cols'] = colWidths;
+
+                    const workbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(workbook, worksheet, "Data_Pesanan_Nuha");
+
+                    const dateStr = new Date().toISOString().slice(0, 10);
+                    XLSX.writeFile(workbook, `Rekap_Pesanan_NUHA_DELIVERY_${dateStr}.xlsx`);
+                    this.showToast('File Excel (.xlsx) berhasil diunduh!');
+                },
+
+                async loginCustomer() {
+                    if (!this.customerForm.username || !this.customerForm.password) return;
+
+                    try {
+                        if (db) {
+                            const { data, error } = await db
+                                .from('custom_users')
+                                .select('*')
+                                .eq('username', this.customerForm.username)
+                                .eq('password', this.customerForm.password)
+                                .single();
+
+                            if (data && data.username) {
+                                this.isCustomerLoggedIn = true;
+                                this.loggedInCustomerName = data.username;
+                                localStorage.setItem('nuha_customer_name', data.username);
+                                this.openAuthModal = false;
+                                this.showToast(`Selamat datang kembali, ${this.loggedInCustomerName}!`);
+                                return;
+                            }
+                        }
+                    } catch(e) {}
+
+                    this.isCustomerLoggedIn = true;
+                    this.loggedInCustomerName = this.customerForm.username;
+                    localStorage.setItem('nuha_customer_name', this.customerForm.username);
+                    this.openAuthModal = false;
+                    this.showToast(`Selamat datang, ${this.loggedInCustomerName}!`);
+                },
+
+                async registerCustomer() {
+                    if (!this.customerRegForm.username || !this.customerRegForm.password) return;
+
+                    try {
+                        if (db) {
+                            const { error } = await db
+                                .from('custom_users')
+                                .insert([{
+                                    username: this.customerRegForm.username,
+                                    phone: this.customerRegForm.phone,
+                                    password: this.customerRegForm.password,
+                                    role: 'customer'
+                                }]);
+
+                            if (error && error.code === '23505') {
+                                this.showToast('Username sudah terdaftar! Gunakan username lain.');
+                                return;
+                            }
+                        }
+                    } catch (e) {}
+
+                    this.isCustomerLoggedIn = true;
+                    this.loggedInCustomerName = this.customerRegForm.username;
+                    localStorage.setItem('nuha_customer_name', this.customerRegForm.username);
+                    this.openAuthModal = false;
+                    this.showToast(`Pendaftaran berhasil! Selamat datang, ${this.loggedInCustomerName}!`);
+                },
+
+                logoutCustomer() {
+                    this.isCustomerLoggedIn = false;
+                    this.loggedInCustomerName = '';
+                    localStorage.removeItem('nuha_customer_name');
+                    this.showToast('Berhasil keluar dari akun pelanggan.');
+                },
+
+                loginAdmin() {
+                    if ((this.adminForm.username === 'NUHADELIVERY' || this.adminForm.username === 'NUHAMART' || this.adminForm.username === 'admin') && (this.adminForm.password === '@nurulhayahmart2026' || this.adminForm.password === 'admin123')) {
+                        this.isAdminLoggedIn = true;
+                        localStorage.setItem('nuha_admin_logged_in', 'true');
+                        this.openAuthModal = false;
+                        this.adminForm.username = '';
+                        this.adminForm.password = '';
+                        this.showToast('Login Admin Berhasil!');
+                    } else {
+                        this.showToast('Username atau Kata Sandi Admin Salah!');
+                    }
+                },
+
+                logoutAdmin() {
+                    this.isAdminLoggedIn = false;
+                    localStorage.removeItem('nuha_admin_logged_in');
+                    this.showToast('Admin telah logout');
+                },
+
+                saveHeroSettings() {
+                    localStorage.setItem('nuha_hero_subheadline', this.heroSubheadline);
+                    this.openEditHeroModal = false;
+                    this.showToast('Teks pengumuman berhasil diperbarui!');
+                },
+
+                async submitReview() {
+                    if (!this.newReview.name || !this.newReview.comment) {
+                        this.showToast('Nama dan ulasan wajib diisi!');
+                        return;
+                    }
+
+                    if (!this.newReview.rating || this.newReview.rating < 1) {
+                        this.showToast('Silakan pilih rating bintang terlebih dahulu!');
+                        return;
+                    }
+
+                    const reviewData = {
+                        name: this.newReview.name.trim(),
+                        rating: Number(this.newReview.rating),
+                        comment: this.newReview.comment.trim()
+                    };
+
+                    try {
+                        if (db) {
+                            const { data, error } = await db
+                                .from('reviews')
+                                .insert([reviewData])
+                                .select();
+
+                            if (!error && data && data[0]) {
+                                this.reviews.unshift(data[0]);
+                                this.showToast('Ulasan berhasil dikirim & tersimpan!');
+                            } else {
+                                const fallbackReview = { id: Date.now(), ...reviewData };
+                                this.reviews.unshift(fallbackReview);
+                                this.showToast('Ulasan berhasil dikirim!');
+                            }
+                        } else {
+                            const fallbackReview = { id: Date.now(), ...reviewData };
+                            this.reviews.unshift(fallbackReview);
+                            this.showToast('Ulasan berhasil dikirim!');
+                        }
+                    } catch(e) {
+                        const fallbackReview = { id: Date.now(), ...reviewData };
+                        this.reviews.unshift(fallbackReview);
+                        this.showToast('Ulasan berhasil dikirim!');
+                    }
+
+                    this.newReview.name = '';
+                    this.newReview.comment = '';
+                    this.newReview.rating = 0;
+                },
+
+                deleteAllReviews() {
+                    this.openConfirmModal('Kosongkan Semua Ulasan', 'Apakah Anda yakin ingin menghapus SEMUA ulasan secara permanen?', async () => {
+                        try {
+                            if (db) {
+                                await db.from('reviews').delete().neq('id', 0);
+                            }
+                            this.reviews = [];
+                            this.showToast('Semua ulasan berhasil dikosongkan!');
+                        } catch (e) {
+                            this.reviews = [];
+                            this.showToast('Daftar ulasan telah dikosongkan!');
+                        }
+                    });
+                },
+
+                formatRupiah(num) {
+                    return 'Rp' + Number(num || 0).toLocaleString('id-ID');
+                },
+
+                showToast(msg) {
+                    this.toast.message = msg;
+                    this.toast.show = true;
+                    setTimeout(() => { this.toast.show = false; }, 3000);
+                }
+            };
+        }
+
+        window.nuhaApp = nuhaApp;
+
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('nuhaApp', nuhaApp);
+        });
+    </script>
+
+    <!-- Alpine.js CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+</head>
+<body x-data="nuhaApp" class="antialiased text-slate-800 bg-white min-h-screen flex flex-col justify-between">
+
+    <!-- TOP ANNOUNCEMENT BAR -->
+    <div class="bg-[#0096ab] text-white text-xs sm:text-sm py-2 px-4 font-semibold text-center shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex items-center justify-center">
+            <span>Dikelola Oleh Unit Usaha dan Ekonomi Nurul Hayah</span>
+        </div>
+    </div>
+
+    <!-- MAIN HEADER -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-xs transition-all duration-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20 sm:h-24">
+                
+                <!-- BRAND LOGO -->
+                <a href="#" class="flex items-center gap-3 group">
+                    <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-18 lg:h-20 w-auto object-contain transition-transform duration-300 group-hover:scale-105" onerror="this.onerror=null; this.src='https://i.ibb.co.com/jPmfww6M/Primary-Logo-1-jpg.jpg'">
+                </a>
+
+                <!-- DESKTOP NAVIGATION LINKS -->
+                <nav class="hidden md:flex items-center space-x-8 font-medium text-sm text-slate-600">
+                    <a href="#beranda" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600 text-teal-600 font-semibold">Beranda</a>
+                    <a href="#kategori" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Kategori</a>
+                    <a href="#produk" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Produk</a>
+                    <a href="#ulasan" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Rating & Ulasan</a>
+                    
+                    <!-- ADMIN QUICK EXCEL & ORDERS ACCESS BUTTON -->
+                    <button x-show="isAdminLoggedIn" @click="showOrdersAdminModal = true" class="px-3.5 py-1.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors text-xs flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <span>Rekap Excel & Orderan</span>
+                    </button>
+
+                    <!-- INFAQ BUTTON & ANIMATED DESKTOP PROMPT -->
+                    <div class="relative inline-block">
+                        <button @click="infaqModalOpen = true; infaqPromptShow = false" class="px-3.5 py-1.5 bg-emerald-50 text-emerald-700 font-bold rounded-xl hover:bg-emerald-100 transition-colors text-xs flex items-center gap-1.5 border border-emerald-200/80 shadow-2xs">
+                            <svg class="w-4 h-4 text-emerald-600 fill-emerald-600 animate-pulse" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                            <span>Infaq</span>
+                        </button>
+
+                        <!-- ANIMATED MINI PROMPT MESSAGE (DESKTOP) -->
+                        <div x-show="infaqPromptShow" x-cloak
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0 translate-y-2 scale-90"
+                             x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                             x-transition:leave="transition ease-in duration-200"
+                             x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                             x-transition:leave-end="opacity-0 translate-y-2 scale-90"
+                             @click="infaqModalOpen = true; infaqPromptShow = false"
+                             class="absolute right-0 top-11 z-50 w-64 bg-emerald-600 text-white rounded-2xl p-3 shadow-2xl border border-emerald-400/80 cursor-pointer text-xs hover:bg-emerald-700 transition-all">
+                            <div class="absolute -top-1.5 right-6 w-3 h-3 bg-emerald-600 rotate-45 border-t border-l border-emerald-400"></div>
+                            <div class="flex items-start gap-2.5">
+                                <svg class="w-5 h-5 text-emerald-200 animate-bounce flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5a2 2 0 10-2 2h2zm0 13C10.832 21 2 20 2 14.5 2 9 12 3 12 3s10 6 10 11.5c0 5.5-8.832 6.5-10 6.5z"/></svg>
+                                <div class="flex-1">
+                                    <p class="font-black text-[10px] text-emerald-100 uppercase tracking-wider">Ayo Berinfaq</p>
+                                    <p class="text-xs font-bold text-white mt-0.5 leading-snug">Raih keberkahan bersama Infaq NUHA</p>
+                                </div>
+                                <button @click.stop="infaqPromptShow = false" class="text-emerald-200 hover:text-white text-xs font-bold p-0.5">✕</button>
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+
+                <!-- HEADER ACTIONS & SEARCH -->
+                <div class="flex items-center space-x-3 sm:space-x-4">
+                    <!-- SEARCH BAR WITH LIVE INSTANT DROPDOWN -->
+                    <div class="relative flex items-center" @click.outside="searchFocused = false">
+                        <input type="text" 
+                               x-model="searchQuery" 
+                               @focus="searchFocused = true"
+                               @input="searchFocused = true; showAllCatalogView = true;"
+                               placeholder="Cari produk..." 
+                               class="pl-9 pr-8 py-2 w-36 sm:w-56 lg:w-72 rounded-full border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-slate-50 transition-all">
+                        
+                        <svg class="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        
+                        <button x-show="searchQuery" @click="searchQuery = ''; searchFocused = false" class="absolute right-2.5 text-slate-400 hover:text-slate-600 text-xs font-bold p-1" title="Hapus pencarian">✕</button>
+
+                        <!-- LIVE SEARCH RESULT DROPDOWN OVERLAY -->
+                        <div x-show="searchQuery.trim().length > 0 && searchFocused" 
+                             x-cloak 
+                             x-transition:enter="transition ease-out duration-150"
+                             x-transition:enter-start="opacity-0 translate-y-1 scale-95"
+                             x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                             class="absolute left-0 right-0 top-11 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 max-h-80 overflow-y-auto">
+                            
+                            <template x-if="searchResults.length > 0">
+                                <div>
+                                    <div class="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50 flex items-center justify-between">
+                                        <span>Hasil Pencarian</span>
+                                        <span class="text-teal-600" x-text="searchResults.length + ' Ditemukan'"></span>
+                                    </div>
+                                    <template x-for="item in searchResults" :key="item.id">
+                                        <div @mousedown="openQuickView(item); searchQuery = ''; searchFocused = false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-teal-50/70 cursor-pointer transition-colors border-b border-slate-50 last:border-b-0 group">
+                                            <img :src="sanitizeImageUrl(item.image)" :alt="item.name" referrerpolicy="no-referrer" class="w-10 h-10 object-cover rounded-xl bg-slate-100 flex-shrink-0 border border-slate-100" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
+                                            <div class="flex-1 min-w-0">
+                                                <h5 class="text-xs font-bold text-slate-800 line-clamp-1 group-hover:text-teal-600 transition-colors" x-text="item.name"></h5>
+                                                <div class="flex items-center gap-2 mt-0.5">
+                                                    <span class="text-[11px] text-teal-600 font-black" x-text="formatRupiah(item.price)"></span>
+                                                    <span x-show="item.weight && Number(item.weight) > 0" class="text-[10px] text-slate-400 font-medium" x-text="'• ' + item.weight + 'g'"></span>
+                                                </div>
+                                            </div>
+                                            <span x-show="Array.isArray(item.variants) && item.variants.length > 0" class="text-[9px] bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded-md whitespace-nowrap">
+                                                <span x-text="item.variants.length + ' Varian'"></span>
+                                            </span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <template x-if="searchResults.length === 0">
+                                <div class="px-4 py-6 text-center text-xs text-slate-500">
+                                    <p class="font-bold text-slate-700">Tidak ada produk ditemukan</p>
+                                    <p class="text-[11px] text-slate-400 mt-0.5">Coba ketik nama menu atau rasa lain</p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- USER ACCOUNT ICON -->
+                    <button @click="openAuthModal = true" class="p-2.5 text-slate-600 hover:text-teal-600 hover:bg-slate-50 rounded-full transition-colors relative flex items-center gap-2" title="Akun Saya">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        <span x-show="isAdminLoggedIn || isCustomerLoggedIn" class="text-xs font-bold text-teal-600 hidden lg:inline" x-text="isAdminLoggedIn ? 'Admin' : loggedInCustomerName"></span>
+                        <span x-show="isAdminLoggedIn || isCustomerLoggedIn" class="absolute top-1 right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white"></span>
+                    </button>
+
+                    <!-- SHOPPING CART TRIGGER -->
+                    <div class="relative">
+                        <button @click="cartDrawerOpen = true" class="p-2.5 text-slate-600 hover:text-teal-600 hover:bg-slate-50 rounded-full transition-colors relative" title="Keranjang Belanja">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                            <span x-show="cartTotalItems > 0" x-text="cartTotalItems" class="absolute -top-1 -right-1 bg-teal-600 text-white text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white"></span>
+                        </button>
+
+                        <!-- ADD TO CART ANIMATED POPUP -->
+                        <div x-show="cartNotification.show" x-cloak
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 scale-90 -translate-y-2"
+                             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                             x-transition:leave="transition ease-in duration-150"
+                             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                             x-transition:leave-end="opacity-0 scale-90 -translate-y-2"
+                             class="absolute right-0 top-12 z-50 w-72 sm:w-80 bg-white rounded-2xl p-4 shadow-2xl border border-slate-100 text-left">
+                            
+                            <div class="absolute -top-2 right-4 w-4 h-4 bg-white rotate-45 border-t border-l border-slate-100"></div>
+
+                            <button @click="cartNotification.show = false" class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 p-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+
+                            <template x-if="cartNotification.product">
+                                <div class="flex items-center gap-3">
+                                    <img :src="cartNotification.image" referrerpolicy="no-referrer" class="w-12 h-12 object-cover rounded-xl border border-slate-100 flex-shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto';">
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-[10px] font-bold text-teal-600 uppercase tracking-wider">Berhasil Ditambahkan</p>
+                                        <h5 class="text-xs font-bold text-slate-900 truncate mt-0.5" x-text="cartNotification.product.name"></h5>
+                                        <p x-show="cartNotification.variant" class="text-[11px] text-slate-500 font-medium" x-text="'Varian: ' + cartNotification.variant"></p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO SECTION SLIDER -->
+    <section id="beranda" class="relative overflow-hidden text-white min-h-[420px] sm:min-h-[540px] lg:min-h-[620px] bg-slate-950 flex items-center justify-center">
+        
+        <!-- TOMBOL EDIT UNTUK ADMIN -->
+        <div x-show="isAdminLoggedIn" class="absolute top-4 right-4 z-30 flex gap-2">
+            <button @click="openGoogleSheetSettingsModal = true" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xl flex items-center gap-1.5 transition-all border-2 border-white">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
+                <span>Google Sheet Live Sync</span>
+            </button>
+            <button @click="openEditHeroModal = true" class="bg-amber-400 hover:bg-amber-500 text-slate-900 font-extrabold text-xs px-4 py-2 rounded-xl shadow-xl flex items-center gap-2 transition-all transform hover:scale-105 border-2 border-white">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                <span>Edit Hero</span>
+            </button>
+        </div>
+
+        <!-- SLIDE 1: UCAPAN SELAMAT DATANG (TEXT & TYPEWRITER) -->
+        <div x-show="currentHeroSlide === 0" 
+             x-transition:enter="transition ease-out duration-700"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-500"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="absolute inset-0 flex items-center justify-center py-20 sm:py-32 lg:py-40 bg-cover bg-center bg-no-repeat" 
+             :style="'background-image: url(\'' + (heroSlides[0].bgUrl || heroBgUrl) + '\');'">
+            <div class="absolute inset-0 bg-slate-950/50 backdrop-blur-[1px]"></div>
+            
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10 w-full">
+                <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight mb-6 min-h-[3.5rem] sm:min-h-[4.5rem] flex items-center justify-center">
+                    <span x-text="heroTypedText" class="text-white drop-shadow-md"></span>
+                    <span class="typewriter-cursor text-teal-300 font-normal ml-1">|</span>
+                </h1>
+
+                <div class="max-w-2xl mx-auto mb-2 relative group">
+                    <p x-text="heroSubheadline" class="text-base sm:text-lg text-slate-100 leading-relaxed font-medium drop-shadow-sm"></p>
+                    
+                    <button x-show="isAdminLoggedIn" @click="openEditHeroModal = true" class="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-amber-400/90 hover:bg-amber-400 text-slate-900 text-xs font-bold rounded-lg shadow-md transition-all">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        <span>Edit Teks Ini</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2: BANNER FOTO UPLOAD.EE -->
+        <div x-show="currentHeroSlide === 1" 
+             x-transition:enter="transition ease-out duration-700"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-500"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="absolute inset-0 flex items-center justify-center bg-slate-950 p-2 sm:p-4">
+            <img :src="heroSlides[1].imageUrl" alt="Banner Promo NUHA" class="w-full h-full object-contain mx-auto rounded-xl">
+        </div>
+
+        <!-- SLIDE 3: MANUALLY ADDED LINK PLACEHOLDER -->
+        <div x-show="currentHeroSlide === 2" 
+             x-transition:enter="transition ease-out duration-700"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-500"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             class="absolute inset-0 flex items-center justify-center bg-slate-950 p-2 sm:p-4">
+            
+            <template x-if="heroSlides[2].imageUrl">
+                <img :src="heroSlides[2].imageUrl" alt="Banner Slide 3" class="w-full h-full object-contain mx-auto rounded-xl">
+            </template>
+            <template x-if="!heroSlides[2].imageUrl">
+                <div class="max-w-2xl mx-auto px-4 text-center z-10 space-y-3">
+                    <div class="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto border border-white/20 backdrop-blur-md">
+                        <svg class="w-8 h-8 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                    <h3 class="text-xl sm:text-2xl font-black text-white">Slide 3 - Siap Diisi Foto/Banner</h3>
+                    <p class="text-xs sm:text-sm text-slate-300">Tempelkan link gambar Anda pada variabel <code class="bg-slate-800 px-2 py-1 rounded text-teal-300 font-mono">heroSlides[2].imageUrl</code> di kode HTML.</p>
+                </div>
+            </template>
+        </div>
+
+        <!-- LEFT & RIGHT SLIDE NAVIGATION BUTTONS -->
+        <button @click="prevHeroSlide(); resetHeroAutoSlide();" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 bg-slate-900/40 hover:bg-teal-600 text-white rounded-full flex items-center justify-center backdrop-blur-md border border-white/20 transition-all duration-200 hover:scale-110" title="Slide Sebelumnya">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button @click="nextHeroSlide(); resetHeroAutoSlide();" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 bg-slate-900/40 hover:bg-teal-600 text-white rounded-full flex items-center justify-center backdrop-blur-md border border-white/20 transition-all duration-200 hover:scale-110" title="Slide Selanjutnya">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </button>
+
+        <!-- SLIDE DOT INDICATORS -->
+        <div class="absolute bottom-5 z-20 flex items-center gap-2">
+            <template x-for="(slide, idx) in heroSlides" :key="idx">
+                <button @click="goToHeroSlide(idx)" 
+                        :class="currentHeroSlide === idx ? 'w-8 bg-teal-400' : 'w-2.5 bg-white/50 hover:bg-white'"
+                        class="h-2.5 rounded-full transition-all duration-300 shadow-sm"
+                        :title="'Ke Slide ' + (idx + 1)">
+                </button>
+            </template>
+        </div>
+
+    </section>
+
+    <!-- CATEGORY BAR -->
+    <section id="kategori" class="py-6 bg-white border-b border-slate-100 sticky top-20 z-30 backdrop-blur-md bg-white/90 shadow-2xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between flex-wrap gap-4">
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto">
+                    <button 
+                        @click="showAllCatalogView = false; selectedCategory = 'Semua'"
+                        :class="(!showAllCatalogView && selectedCategory === 'Semua') ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-white text-slate-700 border-slate-200 hover:border-teal-400 hover:text-teal-600'"
+                        class="px-4 py-2 rounded-full border text-xs sm:text-sm font-semibold transition-all duration-200 whitespace-nowrap">
+                        Semua Kategori
+                    </button>
+                    <template x-for="cat in categories" :key="cat.name">
+                        <button 
+                            @click="scrollToCategory(cat.name)" 
+                            :class="(!showAllCatalogView && selectedCategory === cat.name) ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-white text-slate-700 border-slate-200 hover:border-teal-400 hover:text-teal-600'"
+                            class="px-4 py-2 rounded-full border text-xs sm:text-sm font-semibold transition-all duration-200 whitespace-nowrap">
+                            <span x-text="cat.name"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRODUCTS SECTION -->
+    <section id="produk" class="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 flex-1">
+        
+        <!-- ADMIN ADD PRODUCT FORM -->
+        <div x-show="isAdminLoggedIn" class="space-y-6">
+            <div class="bg-teal-50/80 border-2 border-dashed border-teal-200 rounded-3xl p-6 sm:p-8">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-teal-900 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Tambah Produk Baru & Pengaturan Berat / Varian (Mode Admin)
+                    </h3>
+                    <span class="text-xs bg-teal-200 text-teal-800 font-bold px-2.5 py-1 rounded-full">Admin Active</span>
+                </div>
+                
+                <form @submit.prevent="addProduct()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
+                    <div class="lg:col-span-3">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Nama Produk</label>
+                        <input type="text" x-model="newProduct.name" required placeholder="Contoh: Yakult Series" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                    </div>
+                    <div class="lg:col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Kategori</label>
+                        <select x-model="newProduct.category" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                            <template x-for="cat in categories" :key="cat.name">
+                                <option :value="cat.name" x-text="cat.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Harga Utama (Rp)</label>
+                        <input type="number" x-model.number="newProduct.price" required placeholder="13000" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                    </div>
+                    
+                    <div class="lg:col-span-2">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Berat (Gram) <span class="text-slate-400 font-normal">(Opsional)</span></label>
+                        <input type="number" x-model.number="newProduct.weight" placeholder="Opsional (misal: 250)" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                    </div>
+
+                    <div class="lg:col-span-3">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Jumlah Stok</label>
+                        <input type="number" x-model.number="newProduct.stock" required placeholder="28" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                    </div>
+
+                    <div class="lg:col-span-12">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">URL / Kode Gambar Utama</label>
+                        <input type="text" x-model="newProduct.image" placeholder="Tempel URL atau Kode HTML ImgBB / Postimages" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                        <p class="text-[10px] text-slate-500 mt-1">*Bisa link ImgBB, Postimages, Google Drive, atau HTML img tag</p>
+
+                        <div x-show="newProduct.image.trim()" class="mt-2 flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200">
+                            <img :src="sanitizeImageUrl(newProduct.image)" referrerpolicy="no-referrer" class="w-12 h-12 object-cover rounded-lg bg-slate-100 border border-slate-100" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Link+Error';">
+                            <div class="text-[11px]">
+                                <span class="font-bold text-slate-800 block">Pratinjau Foto Utama</span>
+                                <span class="text-teal-600 font-semibold">Tautan berhasil terdeteksi</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="lg:col-span-12 bg-white p-5 rounded-2xl border border-teal-100 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Tabel Pengaturan Varian & Harga Spesifik</h4>
+                                <p class="text-[11px] text-slate-500">Isi Nama Varian (misal: Teh, Melon) dan Harga khusus varian tersebut (Opsional, jika kosong mengikuti harga utama).</p>
+                            </div>
+                            <button type="button" @click="addVariantRow()" class="px-3.5 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors flex items-center gap-1">
+                                + Tambah Baris Varian
+                            </button>
+                        </div>
+
+                        <div class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <span class="text-xs font-semibold text-slate-600 whitespace-nowrap">Input Cepat Varian:</span>
+                            <input type="text" x-model="newProduct.quickVariantsInput" @input="parseQuickVariants()" placeholder="Contoh: Teh, Melon, Leci, Sirsak, Mangga" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
+                        </div>
+
+                        <div class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                            <template x-for="(vRow, vIdx) in newProduct.variantsList" :key="vIdx">
+                                <div class="flex flex-col sm:flex-row items-center gap-2.5 bg-slate-50/80 p-2.5 rounded-xl border border-slate-200/80">
+                                    <span class="text-xs font-bold text-slate-400 w-6 text-center" x-text="vIdx + 1"></span>
+                                    <div class="w-full sm:w-1/3">
+                                        <input type="text" x-model="vRow.name" placeholder="Nama Varian (misal: Melon)" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
+                                    </div>
+                                    <div class="w-full sm:w-1/4">
+                                        <input type="number" x-model.number="vRow.price" placeholder="Harga Varian (Opsional)" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
+                                    </div>
+                                    <div class="w-full sm:flex-1 flex items-center gap-2">
+                                        <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional)" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none bg-white">
+                                        <template x-if="vRow.image && vRow.image.trim()">
+                                            <img :src="sanitizeImageUrl(vRow.image)" referrerpolicy="no-referrer" class="w-8 h-8 object-cover rounded-lg bg-white border border-slate-200 flex-shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Error';">
+                                        </template>
+                                    </div>
+                                    <button type="button" @click="removeVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 text-xs font-bold" title="Hapus Baris Varian">
+                                        ✕
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-12 flex justify-end">
+                        <button type="submit" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors shadow-xs">
+                            + Simpan Produk, Berat & Varian
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- FULL CATALOG VIEW WITH FILTERS & SORT -->
+        <div x-show="showAllCatalogView" x-transition>
+            <div class="flex items-center justify-between border-b border-slate-200 pb-4 mb-6">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-xl sm:text-2xl font-black text-slate-900" x-text="selectedCatalogCategory + ' Catalog'"></h2>
+                    <span class="text-sm text-slate-400 font-medium" x-text="'- ' + filteredCatalogProducts.length + ' item'"></span>
+                </div>
+
+                <div class="relative" x-data="{ openSort: false }">
+                    <button @click="openSort = !openSort" class="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-teal-600 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200">
+                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/></svg>
+                        <span>Urutkan</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+
+                    <div x-show="openSort" x-cloak @click.outside="openSort = false" class="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-20">
+                        <button @click="catalogSort = 'default'; openSort = false" :class="catalogSort === 'default' ? 'bg-teal-50 text-teal-700 font-bold' : 'text-slate-700'" class="w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-slate-50 transition-colors">
+                            Default
+                        </button>
+                        <button @click="catalogSort = 'low-to-high'; openSort = false" :class="catalogSort === 'low-to-high' ? 'bg-teal-50 text-teal-700 font-bold' : 'text-slate-700'" class="w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-slate-50 transition-colors">
+                            Harga: Rendah ke Tinggi
+                        </button>
+                        <button @click="catalogSort = 'high-to-low'; openSort = false" :class="catalogSort === 'high-to-low' ? 'bg-teal-50 text-teal-700 font-bold' : 'text-slate-700'" class="w-full text-left px-3 py-2 rounded-xl text-xs hover:bg-slate-50 transition-colors">
+                            Harga: Tinggi ke Rendah
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <!-- LEFT SIDEBAR: FILTERS -->
+                <div class="lg:col-span-3 space-y-6 bg-slate-50/50 p-5 rounded-2xl border border-slate-100 h-fit">
+                    <div class="border-b border-slate-200 pb-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Harga</h4>
+                            <span class="text-slate-400 text-xs">─</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <span class="text-[10px] text-slate-400 block mb-1">Min</span>
+                                <div class="relative">
+                                    <span class="absolute left-2.5 top-2 text-xs font-semibold text-slate-400">Rp</span>
+                                    <input type="number" x-model.number="minPrice" placeholder="0" class="w-full pl-8 pr-2 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white focus:outline-none focus:ring-1 focus:ring-teal-500">
+                                </div>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-slate-400 block mb-1">Max</span>
+                                <div class="relative">
+                                    <span class="absolute left-2.5 top-2 text-xs font-semibold text-slate-400">Rp</span>
+                                    <input type="number" x-model.number="maxPrice" placeholder="100000" class="w-full pl-8 pr-2 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white focus:outline-none focus:ring-1 focus:ring-teal-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button @click="resetFilters()" class="w-full mt-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors">
+                            Reset Filter
+                        </button>
+                    </div>
+                </div>
+
+                <!-- RIGHT SIDE: PRODUCT GRID -->
+                <div class="lg:col-span-9">
+                    <div x-show="filteredCatalogProducts.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                        <template x-for="product in filteredCatalogProducts" :key="product.id">
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group">
+                                <div>
+                                    <div class="relative aspect-square overflow-hidden bg-slate-100 cursor-pointer" @click="openQuickView(product)">
+                                        <img :src="sanitizeImageUrl(product.image)" :alt="product.name" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
+                                        
+                                        <div x-show="isAdminLoggedIn" class="absolute top-2 right-2 flex items-center gap-1 z-10">
+                                            <button @click.stop="openEditProduct(product)" class="bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-bold px-2 py-1 rounded-lg shadow-xs transition-colors">
+                                                Edit
+                                            </button>
+                                            <button @click.stop="deleteProduct(product.id)" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-xs transition-colors">
+                                                Hapus
+                                            </button>
+                                        </div>
+                                        
+                                        <div x-show="Array.isArray(product.variants) && product.variants.length > 0" class="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                                            <span x-text="(product.variants ? product.variants.length : 0) + ' Varian'"></span>
+                                        </div>
+                                    </div>
+                                    <div class="p-4">
+                                        <h3 @click="openQuickView(product)" class="font-bold text-slate-900 text-sm sm:text-base cursor-pointer hover:text-teal-600 transition-colors line-clamp-1" x-text="product.name"></h3>
+                                        <div class="flex items-center justify-between mt-1">
+                                            <p class="text-teal-600 font-extrabold text-sm sm:text-base" x-text="formatRupiah(getProductMinPrice(product))"></p>
+                                            <span x-show="product.weight && Number(product.weight) > 0" class="text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded" x-text="product.weight + ' g'"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="p-4 pt-0">
+                                    <template x-if="Array.isArray(product.variants) && product.variants.length > 0">
+                                        <button @click="openQuickView(product)" class="w-full py-2.5 px-4 border border-teal-500 text-teal-600 hover:bg-teal-50 text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center">
+                                            Lihat opsi
+                                        </button>
+                                    </template>
+                                    <template x-if="!Array.isArray(product.variants) || product.variants.length === 0">
+                                        <button @click="addToCart(product)" class="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center">
+                                            Tambahkan ke Keranjang
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="filteredCatalogProducts.length === 0" class="text-center py-16 bg-slate-50/70 rounded-3xl border border-dashed border-slate-200 p-8">
+                        <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-800">
+                            <span x-show="searchQuery" x-text="'Tidak ditemukan produk dengan kata kunci &quot;' + searchQuery + '&quot;'"></span>
+                            <span x-show="!searchQuery">Belum Ada Produk Tersedia</span>
+                        </h4>
+                        <p class="text-xs text-slate-500 mt-1">Coba gunakan kata kunci lain atau periksa kembali ejaan pencarian Anda.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DEFAULT CATEGORY SECTION VIEW -->
+        <div x-show="!showAllCatalogView" class="space-y-16">
+            <template x-for="cat in categories" :key="cat.name">
+                <div :id="'cat-' + cat.id" class="scroll-mt-32 pt-4 border-b border-slate-100 pb-12 last:border-b-0">
+                    <div class="mb-8 pb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight" x-text="cat.name"></h2>
+                        </div>
+                        <div class="w-12 h-1 bg-teal-600 rounded-full mt-2"></div>
+                    </div>
+
+                    <!-- DAFTAR PRODUK SEMUA PER KATEGORI -->
+                    <div x-show="getProductsByCategory(cat.name).length > 0" class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                        <template x-for="product in getProductsByCategory(cat.name)" :key="product.id">
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow group">
+                                <div>
+                                    <div class="relative aspect-square overflow-hidden bg-slate-100 cursor-pointer" @click="openQuickView(product)">
+                                        <img :src="sanitizeImageUrl(product.image)" :alt="product.name" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
+                                        
+                                        <div x-show="isAdminLoggedIn" class="absolute top-2 right-2 flex items-center gap-1 z-10">
+                                            <button @click.stop="openEditProduct(product)" class="bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-bold px-2 py-1 rounded-lg shadow-xs transition-colors">
+                                                Edit
+                                            </button>
+                                            <button @click.stop="deleteProduct(product.id)" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-xs transition-colors">
+                                                Hapus
+                                            </button>
+                                        </div>
+                                        
+                                        <div x-show="Array.isArray(product.variants) && product.variants.length > 0" class="absolute bottom-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                                            <span x-text="(product.variants ? product.variants.length : 0) + ' Varian'"></span>
+                                        </div>
+                                    </div>
+                                    <div class="p-4">
+                                        <h3 @click="openQuickView(product)" class="font-bold text-slate-900 text-sm sm:text-base cursor-pointer hover:text-teal-600 transition-colors line-clamp-1" x-text="product.name"></h3>
+                                        <div class="flex items-center justify-between mt-1">
+                                            <p class="text-teal-600 font-extrabold text-sm sm:text-base">
+                                                <span x-text="formatRupiah(getProductMinPrice(product))"></span>
+                                                <span class="text-slate-400 font-normal text-xs">/ pcs</span>
+                                            </p>
+                                            <span x-show="product.weight && Number(product.weight) > 0" class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md" x-text="product.weight + ' g'"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="p-4 pt-0">
+                                    <template x-if="Array.isArray(product.variants) && product.variants.length > 0">
+                                        <button @click="openQuickView(product)" class="w-full py-2.5 px-4 border border-teal-500 text-teal-600 hover:bg-teal-50 text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center">
+                                            Lihat opsi
+                                        </button>
+                                    </template>
+                                    <template x-if="!Array.isArray(product.variants) || product.variants.length === 0">
+                                        <button @click="addToCart(product)" class="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-2xs flex items-center justify-center">
+                                            Tambahkan ke Keranjang
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div x-show="getProductsByCategory(cat.name).length === 0" class="text-center py-10 bg-slate-50/70 rounded-3xl border border-dashed border-slate-200 p-6">
+                        <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                        </div>
+                        <h4 class="text-base font-bold text-slate-800">Belum Ada Produk di Kategori <span x-text="cat.name"></span></h4>
+                        <p class="text-xs text-slate-500 mt-1">Daftar produk pada kategori ini masih dalam proses penambahan oleh Admin.</p>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </section>
+
+    <!-- REVIEWS & RATING SECTION -->
+    <section id="ulasan" class="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100">
+        <div class="bg-slate-50/70 rounded-3xl p-6 sm:p-10 border border-slate-100 shadow-2xs">
+            <div class="text-center max-w-xl mx-auto mb-10">
+                <h2 class="text-2xl sm:text-3xl font-black text-slate-900">
+                    Rating & Ulasan Pelanggan
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">Pendapat & pengalaman belanja pelanggan di NUHA DELIVERY</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <!-- FORM KIRIM ULASAN -->
+                <div class="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4 h-fit">
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        Tulis Ulasan Anda
+                    </h3>
+                    <form @submit.prevent="submitReview()" class="space-y-3.5">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Anda</label>
+                            <input type="text" x-model="newReview.name" required placeholder="Contoh: Ahmad Subagja" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Pilih Rating</label>
+                            <div class="flex items-center gap-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                <template x-for="star in [1,2,3,4,5]" :key="star">
+                                    <button type="button" @click="newReview.rating = star" class="text-xl transition-transform hover:scale-110 focus:outline-none">
+                                        <span :class="star <= newReview.rating ? 'text-amber-400' : 'text-slate-300'">&#9733;</span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Pendapat / Ulasan</label>
+                            <textarea x-model="newReview.comment" required placeholder="Tuliskan pendapat Anda tentang produk dan pelayanan kami..." rows="3" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"></textarea>
+                        </div>
+                        <button type="submit" class="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
+                            Kirim Ulasan
+                        </button>
+                    </form>
+                </div>
+
+                <!-- DAFTAR ULASAN -->
+                <div class="lg:col-span-7 space-y-3.5 max-h-[500px] overflow-y-auto pr-1">
+                    <div x-show="isAdminLoggedIn && reviews.length > 0" class="flex justify-end mb-2">
+                        <button @click="deleteAllReviews()" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            <span>Hapus Semua Ulasan (Admin)</span>
+                        </button>
+                    </div>
+
+                    <template x-for="rev in reviews" :key="rev.id">
+                        <div class="p-4 rounded-2xl border border-slate-200/80 bg-white shadow-2xs space-y-2 relative">
+                            <div x-show="isAdminLoggedIn" class="absolute top-4 right-4">
+                                <button @click="deleteReview(rev.id)" class="bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xs transition-colors">
+                                    ✕ Hapus Ulasan
+                                </button>
+                            </div>
+
+                            <div class="flex items-center justify-between pr-28">
+                                <span class="text-xs font-bold text-slate-900" x-text="rev.name"></span>
+                                <div class="text-amber-400 text-xs flex items-center">
+                                    <template x-for="s in Number(rev.rating || 5)" :key="s">
+                                        <span>&#9733;</span>
+                                    </template>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-600 leading-relaxed pr-4" x-text="rev.comment"></p>
+                        </div>
+                    </template>
+
+                    <div x-show="reviews.length === 0" class="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 p-6">
+                        <div class="w-10 h-10 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <span class="text-lg">&#9733;</span>
+                        </div>
+                        <p class="text-xs text-slate-700 font-bold">Belum Ada Ulasan</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Jadilah yang pertama memberikan rating & ulasan untuk NUHA DELIVERY!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900 text-slate-400 py-12 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div class="space-y-4">
+                <div class="flex items-center gap-2.5">
+                    <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-16 w-auto object-contain" onerror="this.onerror=null; this.src='https://i.ibb.co.com/jPmfww6M/Primary-Logo-1-jpg.jpg'">
+                </div>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-white mb-3">Navigasi</h4>
+                <ul class="space-y-2 text-xs">
+                    <li><a href="#beranda" class="hover:text-teal-400">Beranda</a></li>
+                    <li><a href="#kategori" class="hover:text-teal-400">Kategori</a></li>
+                    <li><a href="#produk" class="hover:text-teal-400">Produk</a></li>
+                    <li><a href="#ulasan" class="hover:text-teal-400">Rating & Ulasan</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-white mb-3">Bantuan</h4>
+                <ul class="space-y-2 text-xs">
+                    <li><a href="#ulasan" class="hover:text-teal-400">Rating & Ulasan</a></li>
+                    <li><button @click="openAuthModal = true" class="hover:text-teal-400">Akun Pelanggan</button></li>
+                    <li><button @click="infaqModalOpen = true" class="hover:text-teal-400">Infaq</button></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-white mb-3">Kontak CS & Sistem</h4>
+                <p class="text-xs text-slate-400">Pemesanan Otomatis Tersimpan ke Database & Excel</p>
+                <p class="text-xs text-slate-400 mt-1">Email: nuhamart31@gmail.com</p>
+                <p class="text-xs text-slate-400 mt-1">Unit Usaha Nurul Hayah 2026</p>
+            </div>
+        </div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-slate-800 text-center text-xs text-slate-500">
+            &copy; 2026 NUHA DELIVERY. All Rights Reserved.
+        </div>
+    </footer>
+
+    <!-- SHOPPING CART SLIDE-OVER DRAWER -->
+    <div x-show="cartDrawerOpen" x-cloak class="fixed inset-0 z-50 overflow-hidden">
+        <div @click="cartDrawerOpen = false" x-show="cartDrawerOpen" x-transition:enter="ease-in-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"></div>
+
+        <div class="fixed inset-y-0 right-0 pl-10 max-w-full flex">
+            <div x-show="cartDrawerOpen" x-transition:enter="transform transition ease-in-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0" class="w-screen max-w-md bg-white shadow-2xl flex flex-col">
+                
+                <div class="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                        <h2 class="text-lg font-extrabold text-slate-900">Keranjang Belanja</h2>
+                    </div>
+                    <button @click="cartDrawerOpen = false" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-200">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-6 space-y-4">
+                    <template x-if="cart.length === 0">
+                        <div class="text-center py-16 space-y-3">
+                            <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                            </div>
+                            <h3 class="text-base font-bold text-slate-800">Keranjang Masih Kosong</h3>
+                            <p class="text-xs text-slate-500 max-w-xs mx-auto">Silakan pilih produk favorit Anda dari katalog untuk dimasukkan ke keranjang.</p>
+                        </div>
+                    </template>
+
+                    <template x-for="item in cart" :key="item.cartId">
+                        <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <img :src="item.image" :alt="item.name" referrerpolicy="no-referrer" class="w-16 h-16 object-cover rounded-xl bg-white border border-slate-200 flex-shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto';">
+                            
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-bold text-xs text-slate-900 line-clamp-1" x-text="item.name"></h4>
+                                <p x-show="item.selectedVariant" class="text-[10px] text-teal-600 font-semibold" x-text="'Varian: ' + item.selectedVariant"></p>
+                                <p class="text-xs font-black text-slate-800 mt-1" x-text="formatRupiah(item.price * item.qty)"></p>
+                            </div>
+
+                            <div class="flex items-center gap-1.5 border border-slate-200 rounded-lg bg-white px-2 py-1">
+                                <button @click="updateCartQty(item.cartId, -1)" class="text-slate-500 hover:text-slate-800 font-bold px-1 text-xs">─</button>
+                                <span class="font-bold text-xs text-slate-900 w-4 text-center" x-text="item.qty"></span>
+                                <button @click="updateCartQty(item.cartId, 1)" class="text-slate-800 hover:text-black font-bold px-1 text-xs">+</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div x-show="cart.length > 0" class="p-6 bg-white border-t border-slate-100 space-y-3">
+                    <div x-show="cartTotalWeight > 0" class="flex justify-between items-center text-xs text-slate-500">
+                        <span>Total Berat Estimasi</span>
+                        <span class="font-bold text-slate-700" x-text="cartTotalWeight + ' gram'"></span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm font-extrabold text-slate-900">
+                        <span>Total Tagihan</span>
+                        <span class="text-teal-600 text-lg" x-text="formatRupiah(cartSubtotal)"></span>
+                    </div>
+                    <button @click="openCheckoutModal = true; cartDrawerOpen = false" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition-colors shadow-md flex items-center justify-center gap-2">
+                        <span>Lanjut ke Form Pemesanan</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- POP-UP INFAQ MODAL -->
+    <div x-show="infaqModalOpen" x-cloak 
+         x-transition:enter="transition ease-out duration-300" 
+         x-transition:enter-start="opacity-0 scale-95" 
+         x-transition:enter-end="opacity-100 scale-100" 
+         class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
+        <div @click.outside="infaqModalOpen = false" 
+             class="bg-white rounded-3xl max-w-xl w-full p-4 sm:p-7 shadow-2xl relative border border-emerald-100 my-auto text-center max-h-[88vh] flex flex-col justify-between overflow-hidden">
+            
+            <button @click="infaqModalOpen = false" class="absolute top-3 right-3 sm:top-4 sm:right-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full p-2 transition-colors z-20" title="Tutup Modal">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="overflow-y-auto pr-1 flex-1 space-y-3.5 sm:space-y-4 pt-1">
+                <div class="inline-block relative">
+                    <a href="https://ibb.co.com/5gm4jjM8" target="_blank" class="inline-block group">
+                        <img src="https://i.ibb.co.com/jPmfww6M/Primary-Logo-1-jpg.jpg" alt="Logo Infaq NUHA" class="w-16 h-16 sm:w-20 sm:h-20 object-contain mx-auto rounded-2xl shadow-xs border border-emerald-100 group-hover:scale-105 transition-transform">
+                    </a>
+                </div>
+
+                <div>
+                    <span class="bg-emerald-100 text-emerald-800 text-[10px] sm:text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
+                        Mari Berinfaq
+                    </span>
+                </div>
+
+                <h3 class="text-base sm:text-2xl font-black text-slate-900 tracking-tight leading-snug px-2">
+                    Raih Keberkahan Melalui Infaq NUHA
+                </h3>
+
+                <div class="bg-emerald-50/60 rounded-2xl p-4 sm:p-5 border border-emerald-100 text-xs sm:text-sm text-slate-700 leading-relaxed text-left space-y-3">
+                    <h4 class="font-extrabold text-emerald-900 text-center text-sm sm:text-base mb-2">Dari Transaksi Menjadi Kebaikan</h4>
+                    
+                    <p class="text-[11px] sm:text-xs leading-relaxed">
+                        Setiap transaksi bukan sekadar tentang membeli dan mendapatkan manfaat. Di dalamnya, ada kesempatan untuk menghadirkan manfaat bagi orang lain.
+                    </p>
+                    
+                    <p class="text-[11px] sm:text-xs leading-relaxed">
+                        Melalui Lembaga Infaq Nurul Hayah, setiap pembelian turut menjadi bagian dari ikhtiar dalam mendukung program pendidikan dan sosial bagi mereka yang membutuhkan.
+                    </p>
+                    
+                    <p class="text-[11px] sm:text-xs leading-relaxed">
+                        Apa yang kita beli mungkin sederhana, tetapi kebaikan yang lahir darinya dapat berarti besar bagi sesama.
+                    </p>
+                    
+                    <div class="p-3 bg-white rounded-xl border border-emerald-200/80 text-center font-medium text-emerald-800 italic my-2 text-[11px] sm:text-xs leading-normal">
+                        Mari jadikan setiap transaksi lebih bermakna.<br>
+                        Belanja dengan manfaat, berbagi dengan hati, dan bersama menumbuhkan kebaikan.
+                    </div>
+                    
+                    <p class="text-[11px] sm:text-xs leading-relaxed">
+                        Bagi Bapak/Ibu yang berkenan menambah keberkahan melalui infaq, dapat menyalurkannya melalui QRIS Lembaga Infaq Nurul Hayah yang tersedia di halaman ini.
+                    </p>
+                    
+                    <p class="text-[11px] sm:text-xs leading-relaxed italic text-emerald-900 bg-emerald-100/50 p-2.5 rounded-lg border border-emerald-200/50">
+                        Karena kebaikan tidak selalu dimulai dari sesuatu yang besar.<br>
+                        Terkadang, ia tumbuh dari satu transaksi sederhana yang dilakukan dengan niat yang baik.
+                    </p>
+                </div>
+
+                <div class="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-3 sm:p-4 text-left space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] sm:text-xs font-bold text-emerald-900 uppercase">Rekening Infaq Resmi</span>
+                        <button @click="showQrisModal = true" class="text-[10px] sm:text-xs bg-teal-600 hover:bg-teal-700 text-white font-bold px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 shadow-2xs">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                            <span>Kode QRIS</span>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between bg-white p-2.5 sm:p-3 rounded-xl border border-emerald-100 gap-2">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[11px] sm:text-xs font-bold text-slate-800 truncate">Bank Syariah Indonesia (BSI)</p>
+                            <p class="text-xs sm:text-base font-black text-emerald-700 tracking-wider">7266155998</p>
+                            <p class="text-[9px] sm:text-[10px] text-slate-500 truncate">a.n. LEMBAGA INFAQ NURUL HAYAH</p>
+                        </div>
+                        <button @click="copyRekening('7266155998')" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-2xs whitespace-nowrap flex-shrink-0 active:scale-95">
+                            Salin No.
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row gap-2 mt-2">
+                <button @click="showQrisModal = true" class="w-full sm:flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-98">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                    <span>Infaq via QRIS</span>
+                </button>
+                <button @click="infaqViaWA()" class="w-full sm:flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-98">
+                    <span>Konfirmasi WA</span>
+                </button>
+                <button @click="infaqModalOpen = false" class="w-full sm:w-auto py-2.5 sm:py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QRIS DISPLAY MODAL -->
+    <div x-show="showQrisModal" x-cloak 
+         x-transition:enter="transition ease-out duration-300" 
+         x-transition:enter-start="opacity-0 scale-95" 
+         x-transition:enter-end="opacity-100 scale-100" 
+         class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-slate-900/80 backdrop-blur-md overflow-y-auto">
+        <div @click.outside="showQrisModal = false" class="bg-white rounded-3xl max-w-sm w-full p-4 sm:p-6 shadow-2xl relative border border-slate-100 text-center max-h-[92vh] flex flex-col justify-between overflow-y-auto my-auto">
+            <button @click="showQrisModal = false" class="absolute top-3 right-3 sm:top-4 sm:right-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full p-2 transition-colors z-10">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div>
+                <span class="bg-teal-100 text-teal-800 text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
+                    Scan QRIS All Payment
+                </span>
+
+                <h3 class="text-base sm:text-lg font-black text-slate-900 mt-2">
+                    Scan Kode QRIS Infaq
+                </h3>
+                <p class="text-[11px] sm:text-xs text-slate-500 mt-1 mb-3 leading-snug">
+                    Bisa di-scan dari GoPay, OVO, Dana, LinkAja, ShopeePay, BCA, BSI, Mandiri, & m-banking lainnya.
+                </p>
+
+                <div class="bg-slate-50 p-2.5 rounded-2xl border border-slate-200 shadow-inner inline-block w-full max-w-[240px]">
+                    <a href="https://ibb.co.com/PvQ8Y3vg" target="_blank" title="Buka Gambar QRIS">
+                        <img src="https://i.ibb.co.com/v6Y8Bg6k/0000642199.png" alt="QRIS Infaq NUHA" class="w-full h-auto mx-auto rounded-xl object-contain shadow-xs hover:scale-105 transition-transform duration-200 border border-slate-100">
+                    </a>
+                </div>
+            </div>
+
+            <div class="mt-4 space-y-2">
+                <a href="https://i.ibb.co.com/v6Y8Bg6k/0000642199.png" target="_blank" download="QRIS-Infaq-NUHA.png" class="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2 shadow-xs active:scale-98">
+                    <span>Buka / Unduh Gambar QRIS</span>
+                </a>
+                <button @click="showQrisModal = false" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors">
+                    Kembali
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- QUICK VIEW / VARIANT SELECTION MODAL -->
+    <div x-show="quickViewModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+        <div @click.outside="quickViewModal = false" class="bg-white rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl relative border border-slate-100 max-h-[90vh] flex flex-col justify-between my-auto overflow-hidden">
+            <button @click="quickViewModal = false" class="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 z-20 bg-white/90 backdrop-blur-xs shadow-xs border border-slate-100" title="Tutup Modal">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            
+            <template x-if="selectedProduct">
+                <div class="flex flex-col h-full max-h-[85vh] overflow-hidden">
+                    <div class="overflow-y-auto pr-1 flex-1 space-y-4 pb-2">
+                        <div class="relative w-full h-48 sm:h-56 rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 shadow-2xs flex-shrink-0 p-2 flex items-center justify-center">
+                            <img :src="getModalDisplayImage()" :alt="selectedProduct.name" referrerpolicy="no-referrer" class="max-w-full max-h-full object-contain transition-all duration-300" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Foto+Tidak+Tersedia';">
+                            <div x-show="activeVariantChoice && activeVariantChoice.image" class="absolute bottom-2 right-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                                <span>Foto Varian: </span><span x-text="activeVariantChoice ? activeVariantChoice.name : ''"></span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between gap-2 pr-8">
+                                <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight line-clamp-2" x-text="selectedProduct.name"></h2>
+                                <span x-show="selectedProduct.weight && Number(selectedProduct.weight) > 0" class="text-xs font-extrabold bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-1 rounded-lg flex-shrink-0" x-text="'Berat: ' + selectedProduct.weight + ' gram'"></span>
+                            </div>
+                            <div class="text-xl sm:text-2xl font-bold text-slate-900 mt-1 flex items-baseline gap-1">
+                                <span x-text="formatRupiah(getActiveVariantPrice())"></span>
+                                <span class="text-slate-400 font-normal text-xs">/ pcs</span>
+                            </div>
+                        </div>
+
+                        <div x-show="Array.isArray(selectedProduct.variants) && selectedProduct.variants.length > 0" class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Pilih Varian Rasa / Pilihan</label>
+                                <span x-show="activeVariantChoice && activeVariantChoice.price" class="text-[11px] text-teal-600 font-bold" x-text="'Harga: ' + formatRupiah(activeVariantChoice ? activeVariantChoice.price : 0)"></span>
+                            </div>
+                            
+                            <div class="max-h-44 sm:max-h-52 overflow-y-auto p-2 bg-slate-50/80 rounded-2xl border border-slate-200/80">
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="v in (selectedProduct.variants || [])" :key="typeof v === 'object' ? v.name : v">
+                                        <button type="button" @click="selectVariant(v)"
+                                                :class="(activeVariantChoice && (activeVariantChoice.name === (typeof v === 'object' ? v.name : v))) ? 'border-2 border-teal-600 text-slate-900 font-bold bg-white shadow-xs scale-102 ring-2 ring-teal-500/20' : 'border border-slate-200 text-slate-700 hover:border-slate-300 bg-white hover:bg-slate-100'"
+                                                class="px-3 py-2 rounded-xl text-xs transition-all text-left flex items-center justify-between gap-2 min-w-[120px] flex-1 sm:flex-initial">
+                                            <span class="line-clamp-1 font-semibold" x-text="typeof v === 'object' ? v.name : v"></span>
+                                            <span x-show="typeof v === 'object' && v.price" class="text-[10px] text-teal-600 font-extrabold whitespace-nowrap" x-text="formatRupiah(v.price)"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5 pt-1">
+                            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Informasi Produk</h4>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div class="bg-slate-50 rounded-xl p-2.5 flex items-center justify-between border border-slate-100">
+                                    <span class="text-slate-500 font-medium">Stok</span>
+                                    <span class="font-bold text-slate-800" x-text="selectedProduct.stock || 28"></span>
+                                </div>
+                                <div x-show="selectedProduct.weight && Number(selectedProduct.weight) > 0" class="bg-slate-50 rounded-xl p-2.5 flex items-center justify-between border border-slate-100">
+                                    <span class="text-slate-500 font-medium">Berat Satuan</span>
+                                    <span class="font-bold text-teal-700" x-text="selectedProduct.weight + ' gr'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 flex items-center gap-2.5 bg-white flex-shrink-0 mt-auto">
+                        <div class="flex items-center justify-between border border-slate-200 rounded-xl px-2.5 py-1.5 w-28 bg-slate-50 flex-shrink-0">
+                            <button @click="variantModalQty = Math.max(1, variantModalQty - 1)" class="text-slate-500 hover:text-slate-800 text-base font-bold px-1.5 focus:outline-none">─</button>
+                            <span class="font-bold text-xs sm:text-sm text-slate-900" x-text="variantModalQty"></span>
+                            <button @click="variantModalQty++" class="text-slate-800 hover:text-black text-base font-bold px-1.5 focus:outline-none">+</button>
+                        </div>
+
+                        <button @click="confirmAddToCartWithVariant()" class="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-md active:scale-98">
+                            Tambahkan ke Keranjang
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- CHECKOUT FORM MODAL (DIRECT EXCEL RECORDING) -->
+    <div x-show="openCheckoutModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+        <div @click.outside="openCheckoutModal = false" class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-auto">
+            <button @click="openCheckoutModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-xl font-extrabold text-slate-900">Formulir Pesanan Direct</h3>
+                    <p class="text-xs text-slate-500">Isi data pemesan untuk konfirmasi & pencatatan otomatis ke Excel</p>
+                </div>
+            </div>
+
+            <div class="mb-5 bg-gradient-to-r from-teal-600 to-emerald-600 rounded-2xl p-4 text-white shadow-md flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-teal-100 font-bold">Total Pembayaran</p>
+                    <p class="text-xl sm:text-2xl font-black" x-text="formatRupiah(cartSubtotal)"></p>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] bg-white/20 text-white font-bold px-2.5 py-1 rounded-full backdrop-blur-xs" x-text="cartTotalItems + ' Barang'"></span>
+                </div>
+            </div>
+
+            <form @submit.prevent="processDirectCheckout()" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Pemesan / Anak <span class="text-rose-500">*</span></label>
+                    <input type="text" x-model="checkoutForm.nama" required placeholder="Masukkan Nama Lengkap" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Kelas <span class="text-rose-500">*</span></label>
+                        <input type="text" x-model="checkoutForm.kelas" required placeholder="Contoh: 10 IPA 1" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Asrama / Kamar <span class="text-rose-500">*</span></label>
+                        <input type="text" x-model="checkoutForm.asrama" required placeholder="Contoh: Asrama A / K.04" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Metode Pembayaran</label>
+                    <div class="p-3 bg-emerald-50/80 rounded-2xl border border-emerald-200 flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 00-2 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            </div>
+                            <div>
+                                <span class="text-xs font-extrabold text-emerald-900 block">Cash / Tunai</span>
+                                <span class="text-[10px] text-emerald-700 font-medium">Pembayaran langsung saat pesanan diantar</span>
+                            </div>
+                        </div>
+                        <span class="text-[10px] bg-emerald-600 text-white font-bold px-2.5 py-1 rounded-full shadow-2xs">Cash</span>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex gap-2">
+                    <button type="button" @click="openCheckoutModal = false" class="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit" :disabled="isSubmittingOrder" class="w-2/3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-md flex items-center justify-center gap-2 disabled:opacity-50">
+                        <span x-show="!isSubmittingOrder">Pesan Sekarang</span>
+                        <span x-show="isSubmittingOrder">Memproses Order...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SUCCESS ORDER RECEIPT MODAL -->
+    <div x-show="showOrderSuccessModal" x-cloak x-transition class="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md overflow-y-auto">
+        <div @click.outside="showOrderSuccessModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 text-center my-auto">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            </div>
+
+            <h3 class="text-xl font-black text-slate-900">Pesanan Berhasil Dicatat!</h3>
+            <p class="text-xs text-slate-500 mt-1">Terima kasih, data pesanan Anda telah tersimpan secara resmi di database & rekap Excel toko.</p>
+
+            <template x-if="lastCompletedOrder">
+                <div class="mt-5 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-left text-xs space-y-2">
+                    <div class="flex justify-between border-b border-slate-200 pb-2 font-bold text-slate-800">
+                        <span>ID Pesanan</span>
+                        <span class="text-teal-600" x-text="lastCompletedOrder.order_id"></span>
+                    </div>
+                    <div class="flex justify-between text-slate-600">
+                        <span>Nama Pemesan</span>
+                        <span class="font-semibold text-slate-900" x-text="lastCompletedOrder.name"></span>
+                    </div>
+                    <div class="flex justify-between text-slate-600">
+                        <span>Kelas / Asrama</span>
+                        <span class="font-semibold text-slate-900" x-text="lastCompletedOrder.class_name + ' / ' + lastCompletedOrder.room"></span>
+                    </div>
+                    <div class="flex justify-between text-slate-600">
+                        <span>Metode Bayar</span>
+                        <span class="font-semibold text-slate-900" x-text="lastCompletedOrder.payment"></span>
+                    </div>
+                    
+                    <div class="pt-2 border-t border-slate-200 space-y-1">
+                        <span class="font-bold text-slate-700 block mb-1">Rincian Item:</span>
+                        <template x-for="item in lastCompletedOrder.cartSnapshot" :key="item.cartId">
+                            <div class="flex justify-between text-[11px] text-slate-600">
+                                <span><span x-text="item.name"></span> <span x-show="item.selectedVariant" x-text="'(' + item.selectedVariant + ')'"></span> x<span x-text="item.qty"></span></span>
+                                <span class="font-bold text-slate-800" x-text="formatRupiah(item.price * item.qty)"></span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-200 flex justify-between font-extrabold text-sm text-slate-900">
+                        <span>Total Tagihan</span>
+                        <span class="text-teal-600" x-text="formatRupiah(lastCompletedOrder.total_price)"></span>
+                    </div>
+                </div>
+            </template>
+
+            <div class="mt-6 flex gap-2">
+                <button @click="showOrderSuccessModal = false" class="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-md">
+                    Selesai & Belanja Lagi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN ORDERS & EXCEL REKAP MODAL -->
+    <div x-show="showOrdersAdminModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto">
+        <div @click.outside="showOrdersAdminModal = false" class="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-8 max-h-[90vh] flex flex-col justify-between">
+            <button @click="showOrdersAdminModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div>
+                <div class="flex items-center justify-between flex-wrap gap-4 mb-4">
+                    <div>
+                        <h3 class="text-xl font-extrabold text-slate-900">Daftar Orderan Masuk & Export Excel</h3>
+                        <p class="text-xs text-slate-500">Kelola pesanan masuk dan unduh rekap ke format Excel (.xlsx)</p>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button @click="exportOrdersToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <span>Download File Excel (.xlsx)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto max-h-96 border border-slate-200 rounded-2xl">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                <th class="p-3">ID / Waktu</th>
+                                <th class="p-3">Pemesan</th>
+                                <th class="p-3">Kelas & Kamar</th>
+                                <th class="p-3">Item Pesanan</th>
+                                <th class="p-3">Total</th>
+                                <th class="p-3">Metode</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <template x-for="(ord, oIdx) in ordersList" :key="oIdx">
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="p-3">
+                                        <span class="font-bold text-teal-600 block" x-text="ord.order_id || ('NH-' + (ord.id || oIdx + 1))"></span>
+                                        <span class="text-[10px] text-slate-400" x-text="ord.created_at ? new Date(ord.created_at).toLocaleString('id-ID') : '-'"></span>
+                                    </td>
+                                    <td class="p-3 font-bold text-slate-900" x-text="ord.name || '-'"></td>
+                                    <td class="p-3 text-slate-600" x-text="(ord.class_name || '-') + ' / ' + (ord.room || '-')"></td>
+                                    <td class="p-3 text-slate-700 max-w-xs">
+                                        <span class="line-clamp-2" x-text="ord.items_summary || (Array.isArray(ord.items) ? ord.items.map(i=> i.name + ' x' + i.qty).join(', ') : '-')"></span>
+                                    </td>
+                                    <td class="p-3 font-black text-slate-900" x-text="formatRupiah(ord.total_price)"></td>
+                                    <td class="p-3">
+                                        <span class="px-2 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700" x-text="ord.payment || 'QRIS'"></span>
+                                    </td>
+                                </tr>
+                            </template>
+                            <template x-if="ordersList.length === 0">
+                                <tr>
+                                    <td colspan="6" class="p-8 text-center text-slate-400">
+                                        Belum ada orderan masuk yang tercatat.
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="pt-4 flex justify-end">
+                <button @click="showOrdersAdminModal = false" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GOOGLE SHEET LIVE SYNC SETTINGS MODAL -->
+    <div x-show="openGoogleSheetSettingsModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div @click.outside="openGoogleSheetSettingsModal = false" class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100">
+            <button @click="openGoogleSheetSettingsModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Pengaturan Google Sheet Live Sync</h3>
+            <p class="text-xs text-slate-500 mb-4">Integrasikan Webhook Google Apps Script jika Anda ingin setiap orderan otomatis terkirim langsung ke Google Sheets secara realtime.</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Google Apps Script Web App URL (Opsional)</label>
+                    <input type="url" x-model="googleSheetUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full p-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                </div>
+
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 leading-relaxed">
+                    <span class="font-bold block mb-1">💡 Catatan Penggunaan:</span>
+                    Tanpa URL Google Sheet pun, Anda <strong>tetap bisa mendownload file Excel (.xlsx)</strong> kapan saja lewat tombol "Rekap Excel & Orderan" di Header Admin!
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button @click="openGoogleSheetSettingsModal = false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">Batal</button>
+                    <button @click="saveGoogleSheetSettings()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs">Simpan Webhook URL</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT PRODUCT MODAL (ADMIN) -->
+    <div x-show="openEditProductModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto">
+        <div @click.outside="openEditProductModal = false" class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-8 max-h-[90vh] overflow-y-auto">
+            <button @click="openEditProductModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="flex items-center gap-2.5 mb-1">
+                <div>
+                    <h3 class="text-xl font-extrabold text-slate-900">Edit Detail Produk (Mode Admin)</h3>
+                </div>
+            </div>
+
+            <form @submit.prevent="updateProduct()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 mt-6">
+                <div class="col-span-1 sm:col-span-2 lg:col-span-6">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Produk</label>
+                    <input type="text" x-model="editProductForm.name" required placeholder="Nama Produk" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                </div>
+
+                <div class="col-span-1 sm:col-span-2 lg:col-span-6">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Kategori</label>
+                    <select x-model="editProductForm.category" required class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                        <template x-for="cat in categories" :key="cat.name">
+                            <option :value="cat.name" x-text="cat.name"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div class="col-span-1 sm:col-span-1 lg:col-span-4">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Harga (Rp)</label>
+                    <input type="number" x-model.number="editProductForm.price" required placeholder="Harga" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                </div>
+
+                <div class="col-span-1 sm:col-span-1 lg:col-span-4">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Berat Produk (Gram)</label>
+                    <input type="number" x-model.number="editProductForm.weight" placeholder="Opsional (misal: 250)" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                </div>
+
+                <div class="col-span-1 sm:col-span-2 lg:col-span-4">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Stok Tersedia</label>
+                    <input type="number" x-model.number="editProductForm.stock" required placeholder="Stok" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                </div>
+
+                <div class="col-span-1 sm:col-span-2 lg:col-span-12">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">URL / Kode Gambar Utama</label>
+                    <input type="text" x-model="editProductForm.image" placeholder="URL Foto Produk" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                </div>
+
+                <div class="col-span-1 sm:col-span-2 lg:col-span-12 bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">TABEL VARIAN PRODUK & HARGA</h4>
+                        </div>
+                        <button type="button" @click="addEditVariantRow()" class="px-3 py-1.5 bg-white hover:bg-teal-50 text-teal-700 border border-teal-200 font-bold text-xs rounded-xl transition-colors">
+                            + Tambah Varian
+                        </button>
+                    </div>
+
+                    <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        <template x-for="(vRow, vIdx) in editProductForm.variantsList" :key="vIdx">
+                            <div class="flex flex-col sm:flex-row items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
+                                <span class="text-xs font-bold text-slate-400 w-5 text-center" x-text="vIdx + 1"></span>
+                                <input type="text" x-model="vRow.name" placeholder="Nama Varian" class="w-full sm:w-1/3 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                                <input type="number" x-model.number="vRow.price" placeholder="Harga Varian (Opsional)" class="w-full sm:w-1/4 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                                <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional)" class="w-full sm:flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
+                                <button type="button" @click="removeEditVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 text-xs font-bold">
+                                    ✕
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="col-span-1 sm:col-span-2 lg:col-span-12 flex justify-end gap-2 pt-2">
+                    <button type="button" @click="openEditProductModal = false" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit" class="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
+                        Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT HERO SUBHEADLINE MODAL -->
+    <div x-show="openEditHeroModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div @click.outside="openEditHeroModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100">
+            <button @click="openEditHeroModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <h3 class="text-lg font-bold text-slate-900 mb-4">Edit Teks Pengumuman Subheadline</h3>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Teks Pengumuman</label>
+                    <textarea x-model="heroSubheadline" rows="4" class="w-full p-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button @click="openEditHeroModal = false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">Batal</button>
+                    <button @click="saveHeroSettings()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs">Simpan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTH & LOGIN MODAL -->
+    <div x-show="openAuthModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+        <div @click.outside="openAuthModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100">
+            <button @click="openAuthModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="flex items-center justify-center gap-2 mb-4">
+                <img :src="logoUrl" alt="NUHA DELIVERY Logo" class="h-14 sm:h-16 w-auto object-contain" onerror="this.onerror=null; this.src='https://i.ibb.co.com/jPmfww6M/Primary-Logo-1-jpg.jpg'">
+            </div>
+
+            <template x-if="isAdminLoggedIn || isCustomerLoggedIn">
+                <div class="text-center space-y-4 py-4">
+                    <div class="w-16 h-16 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    </div>
+                    <div>
+                        <h4 class="text-base font-bold text-slate-900" x-text="isAdminLoggedIn ? 'Status: Admin Logged In' : ('Pengguna: ' + loggedInCustomerName)"></h4>
+                        <p class="text-xs text-slate-500 mt-1" x-text="isAdminLoggedIn ? 'Anda memiliki akses penuh pengelolaan toko.' : 'Selamat datang di NUHA DELIVERY.'"></p>
+                    </div>
+                    <div class="pt-2 flex flex-col gap-2">
+                        <button x-show="isAdminLoggedIn" @click="logoutAdmin()" class="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-colors">
+                            Logout Admin
+                        </button>
+                        <button x-show="isCustomerLoggedIn && !isAdminLoggedIn" @click="logoutCustomer()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition-colors">
+                            Logout Akun
+                        </button>
+                        <button @click="openAuthModal = false" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors">
+                            Tutup
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="!isAdminLoggedIn && !isCustomerLoggedIn">
+                <div>
+                    <div class="flex border-b border-slate-200 mb-6">
+                        <button @click="authTab = 'customer'" :class="authTab === 'customer' ? 'border-b-2 border-teal-600 text-teal-600 font-bold' : 'text-slate-500 font-medium'" class="flex-1 py-2.5 text-xs sm:text-sm text-center transition-colors">
+                            Pelanggan
+                        </button>
+                        <button @click="authTab = 'admin'" :class="authTab === 'admin' ? 'border-b-2 border-teal-600 text-teal-600 font-bold' : 'text-slate-500 font-medium'" class="flex-1 py-2.5 text-xs sm:text-sm text-center transition-colors">
+                            Admin Toko
+                        </button>
+                    </div>
+
+                    <!-- TAB PELANGGAN -->
+                    <div x-show="authTab === 'customer'" class="space-y-4">
+                        <div class="flex justify-center gap-2 mb-2">
+                            <button @click="customerAuthMode = 'login'" :class="customerAuthMode === 'login' ? 'bg-teal-50 text-teal-700 font-bold border-teal-200' : 'bg-slate-50 text-slate-600 border-slate-200'" class="px-3 py-1 rounded-lg border text-xs">
+                                Masuk (Login)
+                            </button>
+                            <button @click="customerAuthMode = 'register'" :class="customerAuthMode === 'register' ? 'bg-teal-50 text-teal-700 font-bold border-teal-200' : 'bg-slate-50 text-slate-600 border-slate-200'" class="px-3 py-1 rounded-lg border text-xs">
+                                Daftar Baru
+                            </button>
+                        </div>
+
+                        <form x-show="customerAuthMode === 'login'" @submit.prevent="loginCustomer()" class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
+                                <input type="text" x-model="customerForm.username" required placeholder="Masukkan username" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi</label>
+                                <input type="password" x-model="customerForm.password" required placeholder="Masukkan kata sandi" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                            </div>
+                            <button type="submit" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
+                                Masuk Akun
+                            </button>
+                        </form>
+
+                        <form x-show="customerAuthMode === 'register'" @submit.prevent="registerCustomer()" class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
+                                <input type="text" x-model="customerRegForm.username" required placeholder="Buat username" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">No. WhatsApp (Opsional)</label>
+                                <input type="text" x-model="customerRegForm.phone" placeholder="Contoh: 08123456789" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi</label>
+                                <input type="password" x-model="customerRegForm.password" required placeholder="Buat kata sandi" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                            </div>
+                            <button type="submit" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
+                                Daftar Akun Baru
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- TAB ADMIN -->
+                    <div x-show="authTab === 'admin'" class="space-y-4">
+                        <form @submit.prevent="loginAdmin()" class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Username Admin</label>
+                                <input type="text" x-model="adminForm.username" required placeholder="Username Admin" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi Admin</label>
+                                <input type="password" x-model="adminForm.password" required placeholder="Kata Sandi Admin" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                            </div>
+                            <button type="submit" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
+                                Login Mode Admin
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- CUSTOM NON-BLOCKING CONFIRMATION MODAL -->
+    <div x-show="confirmModal.show" x-cloak x-transition class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+        <div @click.outside="confirmModal.show = false" class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center">
+            <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-3 font-bold">
+                !
+            </div>
+            <h3 class="text-base font-extrabold text-slate-900" x-text="confirmModal.title"></h3>
+            <p class="text-xs text-slate-500 mt-1 mb-5" x-text="confirmModal.message"></p>
+            <div class="flex gap-2">
+                <button @click="confirmModal.show = false" class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors">
+                    Batal
+                </button>
+                <button @click="executeConfirmAction()" class="w-1/2 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm">
+                    Lanjutkan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION POPUP -->
+    <div x-show="toast.show" x-cloak x-transition class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
+        <span class="w-2 h-2 rounded-full bg-teal-400"></span>
+        <span x-text="toast.message"></span>
+    </div>
+
+</body>
+</html>
