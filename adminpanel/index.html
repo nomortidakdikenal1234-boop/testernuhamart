@@ -35,14 +35,19 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5Z2twZmtzcmp6bWxwdGJ2bmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYyNjU1NTQsImV4cCI6MjEwMTg0MTU1NH0.Kr7T5I_CON3KSJgLdNRW2cbhhkPb_ABSGy4J4xNXGXA';
         
         let db = null;
-        try {
+        function getSupabase() {
+            if (db) return db;
             if (typeof supabase !== 'undefined' && supabase.createClient) {
-                db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-                    realtime: { enabled: false }
-                });
+                try {
+                    db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                        auth: { persistSession: false },
+                        realtime: { enabled: false }
+                    });
+                } catch(e) {
+                    console.error('Supabase initialization error:', e);
+                }
             }
-        } catch(e) {
-            console.warn('Supabase initialization warning:', e);
+            return db;
         }
 
         function adminApp() {
@@ -50,32 +55,18 @@
                 isLoggedIn: localStorage.getItem('nuha_admin_logged_in') === 'true',
                 loginForm: { username: '', password: '' },
                 categories: ['Minuman', 'Kudapan', 'Makanan Berat', 'Kebutuhan Pribadi'],
-                activeTab: 'products', // 'products' | 'add' | 'testimonials' | 'orders'
+                activeTab: 'products', // 'products' | 'add' | 'testimonials' | 'orders' | 'orders_v2'
                 
-                products: [],
-                testimonials: [],
-                orders: [],
-                isLoading: false,
-                pollTimer: null,
                 searchQuery: '',
-                searchTestimonialQuery: '',
-                searchOrderQuery: '',
                 selectedCategoryFilter: 'Semua',
-                selectedMonth: 'Semua', // 'Semua' or 'YYYY-MM'
+                searchTestimonialQuery: '',
+                selectedDate: '',
+                selectedMonth: 'Semua',
+                searchOrderQuery: '',
+                selectedDateV2: '',
+                selectedMonthV2: 'Semua',
+                searchOrderV2Query: '',
 
-                // Form Tambah Produk Baru
-                newProduct: {
-                    name: '',
-                    category: 'Minuman',
-                    price: '',
-                    stock: 28,
-                    weight: '',
-                    image: '',
-                    quickVariantsInput: '',
-                    variantsList: [{ name: '', price: '', image: '' }]
-                },
-
-                // Modal Edit Produk
                 openEditModal: false,
                 editForm: {
                     id: null,
@@ -89,69 +80,159 @@
                     variantsList: [{ name: '', price: '', image: '' }]
                 },
 
-                // Modal Detail Pesanan
                 openOrderDetailModal: false,
                 selectedOrderDetails: null,
+                openReceiptModal: false,
+                selectedReceiptOrder: null,
 
-                // Modals Konfirmasi Hapus
                 deleteConfirmModal: { open: false, productId: null, productName: '' },
                 deleteTestimonialModal: { open: false, id: null, name: '' },
-                deleteOrderModal: { open: false, id: null, name: '' },
+                deleteOrderModal: { open: false, id: null, name: '', isV2: false },
+
+                newProduct: {
+                    name: '',
+                    category: 'Minuman',
+                    price: '',
+                    stock: 28,
+                    weight: '',
+                    image: '',
+                    quickVariantsInput: '',
+                    variantsList: [{ name: '', price: '', image: '' }]
+                },
 
                 toast: { show: false, message: '', type: 'success' },
 
+                products: [],
+                testimonials: [],
+                orders: [],       // Riwayat Web 1 (Tabel orders)
+                ordersV2: [],     // Riwayat Web 2 (Tabel orders_v2 & Web V2)
+                isLoading: false,
+
                 init() {
                     if (this.isLoggedIn) {
-                        this.fetchProducts();
-                        this.fetchTestimonials();
-                        this.fetchOrders();
-                        this.startAutoSync();
+                        this.fetchAllData();
                     }
                 },
 
-                startAutoSync() {
-                    if (this.pollTimer) clearInterval(this.pollTimer);
-                    this.pollTimer = setInterval(() => {
-                        if (this.isLoggedIn) {
-                            this.fetchOrders();
-                        }
-                    }, 4000);
-                },
-
                 login() {
-                    const validUsers = ['NUHADELIVERY', 'NUHAMART', 'admin'];
-                    const validPasswords = ['@nurulhayahmart2026', 'admin123'];
+                    const u = (this.loginForm.username || '').trim().toLowerCase();
+                    const p = (this.loginForm.password || '').trim();
 
-                    if (validUsers.includes(this.loginForm.username) && validPasswords.includes(this.loginForm.password)) {
+                    if (
+                        u === 'nuhamart' &&
+                        (p === '@nurulhayahmart2026' || p === 'nurulhayahmart2026')
+                    ) {
                         this.isLoggedIn = true;
                         localStorage.setItem('nuha_admin_logged_in', 'true');
-                        this.showToast('Login Admin Berhasil!', 'success');
-                        this.fetchProducts();
-                        this.fetchTestimonials();
-                        this.fetchOrders();
-                        this.startAutoSync();
+                        this.showToast('Berhasil masuk ke Dashboard Admin!', 'success');
+                        this.fetchAllData();
                     } else {
-                        this.showToast('Username atau Kata Sandi Salah!', 'error');
+                        this.showToast('Username atau password salah!', 'error');
                     }
                 },
 
                 logout() {
                     this.isLoggedIn = false;
                     localStorage.removeItem('nuha_admin_logged_in');
-                    if (this.pollTimer) clearInterval(this.pollTimer);
-                    this.showToast('Logout berhasil', 'info');
+                    this.showToast('Berhasil keluar dari panel', 'success');
+                },
+
+                async fetchAllData() {
+                    await Promise.all([
+                        this.fetchProducts(),
+                        this.fetchTestimonials(),
+                        this.fetchOrders(),
+                        this.fetchOrdersV2()
+                    ]);
+                },
+
+                normalizeOrder(o, defaultSource = 'Web 1') {
+                    if (!o) return null;
+                    const isV2 = Boolean(
+                        o.isV2 || 
+                        o.source === 'Web V2' || 
+                        o.source === 'v2' || 
+                        o.source === 'V2' || 
+                        o.app_version === 'V2' || 
+                        defaultSource === 'Web V2' || 
+                        (o.order_id && (String(o.order_id).startsWith('NH2-') || String(o.order_id).startsWith('NH_V2_')))
+                    );
+                    const source = isV2 ? 'Web V2' : 'Web 1';
+
+                    const name = o.nama || o.name || o.customer_name || o.pemesan || o.user_name || o.pelanggan || 'Pelanggan';
+                    const class_name = o.kelas || o.class_name || o.class || o.tingkat || o.level || '-';
+                    const room = o.asrama || o.room || o.kamar || o.kobong || '-';
+                    const created_at = o.created_at || o.tanggal || o.date || o.timestamp || o.created_time || new Date().toISOString();
+                    const total_price = Number(o.total_price || o.total || o.total_harga || o.amount || o.harga || o.price || 0);
+                    const payment = o.payment || o.metode_pembayaran || o.payment_method || 'Cash / Tunai';
+
+                    let parsedItems = [];
+                    if (o.items || o.cart || o.pesanan_detail) {
+                        const rawItems = o.items || o.cart || o.pesanan_detail;
+                        if (Array.isArray(rawItems)) {
+                            parsedItems = rawItems;
+                        } else if (typeof rawItems === 'string') {
+                            try { parsedItems = JSON.parse(rawItems); } catch(e) { parsedItems = []; }
+                        }
+                    }
+
+                    const items_summary = o.items_summary || (parsedItems.length > 0 ? parsedItems.map(i => `${i.name || i.nama}${i.selectedVariant ? ' ('+i.selectedVariant+')' : ''} x${i.qty || 1}`).join(', ') : '-');
+                    const total_weight = Number(o.total_weight || o.cartTotalWeight || 0);
+                    const order_id = o.order_id || o.id || o._id || null;
+                    const rawId = o.id || o._id || o.order_id;
+                    const stableKey = rawId ? `id_${rawId}` : `ord_${name}_${class_name}_${room}_${total_price}_${created_at}`.replace(/\s+/g, '_');
+
+                    return {
+                        id: String(rawId || stableKey),
+                        order_id: order_id ? String(order_id) : String(stableKey),
+                        original_id: rawId || null,
+                        name,
+                        class_name,
+                        room,
+                        payment,
+                        items: parsedItems,
+                        items_summary,
+                        total_weight,
+                        created_at,
+                        total_price,
+                        status: o.status || 'Pending',
+                        source,
+                        isV2
+                    };
+                },
+
+                formatPaymentMethod(p) {
+                    if (!p) return 'Cash / Tunai';
+                    const str = String(p).toLowerCase();
+                    if (str.includes('qris')) return 'QRIS Instant';
+                    if (str.includes('transfer') || str.includes('bank')) return 'Transfer Bank';
+                    if (str.includes('cash') || str.includes('tunai')) return 'Cash / Tunai';
+                    return p;
+                },
+
+                getPaymentBadgeClass(p) {
+                    const str = String(p || '').toLowerCase();
+                    if (str.includes('qris')) return 'bg-teal-50 text-teal-700 border-teal-200';
+                    if (str.includes('transfer') || str.includes('bank')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                    return 'bg-amber-50 text-amber-700 border-amber-200';
                 },
 
                 async fetchProducts() {
-                    if (!db) return;
+                    const client = getSupabase();
+                    if (!client) {
+                        console.error('Supabase client failed to initialize');
+                        return;
+                    }
                     this.isLoading = true;
                     try {
-                        const { data, error } = await db
+                        const { data, error } = await client
                             .from('products')
                             .select('*')
                             .order('id', { ascending: false });
 
-                        if (!error && data) {
+                        if (error) {
+                            console.error('Supabase error fetching products:', error);
+                        } else if (data) {
                             this.products = data.map(p => {
                                 let parsedVars = [];
                                 if (p.variants) {
@@ -171,6 +252,7 @@
                             });
                         }
                     } catch(e) {
+                        console.error('Gagal memuat daftar produk:', e);
                         this.showToast('Gagal memuat daftar produk', 'error');
                     } finally {
                         this.isLoading = false;
@@ -178,16 +260,17 @@
                 },
 
                 async fetchTestimonials() {
-                    if (!db) return;
+                    const client = getSupabase();
+                    if (!client) return;
                     this.isLoading = true;
                     try {
-                        let { data, error } = await db
+                        let { data, error } = await client
                             .from('testimonials')
                             .select('*')
                             .order('id', { ascending: false });
 
                         if (error || !data) {
-                            const res = await db.from('reviews').select('*').order('id', { ascending: false });
+                            const res = await client.from('reviews').select('*').order('id', { ascending: false });
                             if (res.data) data = res.data;
                         }
 
@@ -208,62 +291,26 @@
                     }
                 },
 
-                normalizeOrder(o) {
-                    if (!o) return null;
-                    const name = o.nama || o.name || o.customer_name || o.pemesan || o.user_name || o.pelanggan || 'Pelanggan';
-                    const class_name = o.kelas || o.class_name || o.class || o.tingkat || o.level || '-';
-                    const room = o.asrama || o.room || o.kamar || o.kobong || '-';
-                    const created_at = o.created_at || o.tanggal || o.date || o.timestamp || o.created_time || new Date().toISOString();
-                    const total_price = Number(o.total_price || o.total || o.total_harga || o.amount || o.harga || o.price || 0);
-                    const payment = o.payment || o.metode_pembayaran || o.payment_method || 'qris';
-
-                    let parsedItems = [];
-                    if (o.items || o.cart || o.pesanan_detail) {
-                        const rawItems = o.items || o.cart || o.pesanan_detail;
-                        if (Array.isArray(rawItems)) {
-                            parsedItems = rawItems;
-                        } else if (typeof rawItems === 'string') {
-                            try { parsedItems = JSON.parse(rawItems); } catch(e) { parsedItems = []; }
-                        }
-                    }
-
-                    const total_weight = Number(o.total_weight || o.cartTotalWeight || 0);
-
-                    return {
-                        id: o.id || o._id || Math.random().toString(36).substring(2, 9),
-                        original_id: o.id || o._id || null,
-                        name,
-                        class_name,
-                        room,
-                        payment,
-                        items: parsedItems,
-                        total_weight,
-                        created_at,
-                        total_price
-                    };
-                },
-
                 async fetchOrders() {
                     let rawList = [];
+                    const client = getSupabase();
 
-                    // 1. Fetch from Supabase tables
-                    if (db) {
+                    if (client) {
                         const tableCandidates = ['orders', 'purchases', 'pesanan', 'riwayat_pesanan', 'transactions'];
                         for (const tbl of tableCandidates) {
                             try {
-                                const { data, error } = await db.from(tbl).select('*').order('id', { ascending: false });
+                                const { data, error } = await client.from(tbl).select('*').order('id', { ascending: false });
                                 if (!error && Array.isArray(data) && data.length > 0) {
                                     data.forEach(item => {
-                                        const norm = this.normalizeOrder(item);
-                                        if (norm) rawList.push(norm);
+                                        const norm = this.normalizeOrder(item, 'Web 1');
+                                        if (norm && !norm.isV2) rawList.push(norm);
                                     });
                                 }
                             } catch(errTbl) {}
                         }
                     }
 
-                    // 2. Fetch from LocalStorage fallbacks
-                    const localKeys = ['nuha_orders', 'nuha_history', 'orders', 'purchases', 'nuha_delivery_orders'];
+                    const localKeys = ['nuha_orders', 'nuha_history', 'orders', 'purchases'];
                     localKeys.forEach(key => {
                         try {
                             const str = localStorage.getItem(key);
@@ -271,24 +318,21 @@
                                 const parsed = JSON.parse(str);
                                 if (Array.isArray(parsed)) {
                                     parsed.forEach(item => {
-                                        const norm = this.normalizeOrder(item);
-                                        if (norm) rawList.push(norm);
+                                        const norm = this.normalizeOrder(item, 'Web 1');
+                                        if (norm && !norm.isV2) rawList.push(norm);
                                     });
                                 }
                             }
                         } catch(e) {}
                     });
 
-                    // 3. Deduplicate
                     const map = new Map();
                     rawList.forEach(item => {
-                        const uniqueKey = item.original_id ? `id_${item.original_id}` : `${item.name}_${item.class_name}_${item.room}_${item.total_price}_${item.created_at}`;
-                        if (!map.has(uniqueKey)) {
-                            map.set(uniqueKey, item);
+                        if (!map.has(item.id)) {
+                            map.set(item.id, item);
                         }
                     });
 
-                    // 4. Filter out transactions older than 30 days (1 month auto-purge rule)
                     const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
                     const now = Date.now();
 
@@ -299,8 +343,77 @@
                         return (now - itemTime) <= thirtyDaysInMs;
                     });
 
-                    // 5. Urutkan dari pesanan terbaru
                     this.orders = validOrders.sort((a, b) => {
+                        const tA = new Date(a.created_at).getTime() || 0;
+                        const tB = new Date(b.created_at).getTime() || 0;
+                        return tB - tA;
+                    });
+                },
+
+                async fetchOrdersV2() {
+                    let rawList = [];
+                    const client = getSupabase();
+
+                    if (client) {
+                        const tableCandidatesV2 = ['orders_v2', 'purchases_v2', 'pesanan_v2', 'transactions_v2'];
+                        for (const tbl of tableCandidatesV2) {
+                            try {
+                                const { data, error } = await client.from(tbl).select('*').order('id', { ascending: false });
+                                if (!error && Array.isArray(data) && data.length > 0) {
+                                    data.forEach(item => {
+                                        const norm = this.normalizeOrder(item, 'Web V2');
+                                        if (norm) rawList.push(norm);
+                                    });
+                                }
+                            } catch(errTbl) {}
+                        }
+
+                        try {
+                            const { data, error } = await client.from('orders').select('*').order('id', { ascending: false });
+                            if (!error && Array.isArray(data) && data.length > 0) {
+                                data.forEach(item => {
+                                    const norm = this.normalizeOrder(item, 'Web 1');
+                                    if (norm && norm.isV2) rawList.push(norm);
+                                });
+                            }
+                        } catch(err) {}
+                    }
+
+                    const localKeysV2 = ['nuha_local_orders_v2', 'nuha_local_orders', 'nuha_orders_v2', 'orders_v2', 'purchases_v2'];
+                    localKeysV2.forEach(key => {
+                        try {
+                            const str = localStorage.getItem(key);
+                            if (str) {
+                                const parsed = JSON.parse(str);
+                                if (Array.isArray(parsed)) {
+                                    parsed.forEach(item => {
+                                        const norm = this.normalizeOrder(item, 'Web V2');
+                                        if (norm) rawList.push(norm);
+                                    });
+                                }
+                            }
+                        } catch(e) {}
+                    });
+
+                    const map = new Map();
+                    rawList.forEach(item => {
+                        const key = item.order_id || item.id;
+                        if (!map.has(key)) {
+                            map.set(key, item);
+                        }
+                    });
+
+                    const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+                    const now = Date.now();
+
+                    const validOrders = Array.from(map.values()).filter(item => {
+                        if (!item.created_at) return true;
+                        const itemTime = new Date(item.created_at).getTime();
+                        if (isNaN(itemTime)) return true;
+                        return (now - itemTime) <= thirtyDaysInMs;
+                    });
+
+                    this.ordersV2 = validOrders.sort((a, b) => {
                         const tA = new Date(a.created_at).getTime() || 0;
                         const tB = new Date(b.created_at).getTime() || 0;
                         return tB - tA;
@@ -312,39 +425,73 @@
                     this.openOrderDetailModal = true;
                 },
 
-                exportToSpreadsheet() {
-                    const list = this.filteredOrders;
+                printReceipt(order) {
+                    this.selectedReceiptOrder = order;
+                    this.openReceiptModal = true;
+                },
+
+                triggerPrintWindow() {
+                    window.print();
+                },
+
+                resetFilters(isV2 = false) {
+                    if (isV2) {
+                        this.selectedDateV2 = '';
+                        this.selectedMonthV2 = 'Semua';
+                        this.searchOrderV2Query = '';
+                    } else {
+                        this.selectedDate = '';
+                        this.selectedMonth = 'Semua';
+                        this.searchOrderQuery = '';
+                    }
+                },
+
+                exportToSpreadsheet(isV2 = false) {
+                    const list = isV2 ? this.filteredOrdersV2 : this.filteredOrders;
+                    const filePrefix = isV2 ? 'Riwayat_Pembelian_V2_NUHA' : 'Riwayat_Pembelian_NUHA';
+                    
                     if (!list || list.length === 0) {
                         this.showToast('Tidak ada data riwayat pembelian untuk diexport!', 'error');
                         return;
                     }
 
                     const exportData = list.map((item, index) => {
-                        let itemsSummary = '-';
+                        let itemsSummary = item.items_summary || '-';
                         if (Array.isArray(item.items) && item.items.length > 0) {
                             itemsSummary = item.items.map(i => `${i.name || i.nama}${i.selectedVariant ? ' ('+i.selectedVariant+')' : ''} x${i.qty || 1}`).join(', ');
                         }
 
                         return {
                             'No': index + 1,
+                            'Sumber Website': item.source || (isV2 ? 'Web V2' : 'Web 1'),
+                            'ID Pesanan': item.order_id || item.id,
                             'Nama Pelanggan': item.name,
                             'Kelas': item.class_name,
                             'Kamar / Asrama': item.room,
-                            'Metode Pembayaran': item.payment === 'qris' ? 'QRIS Instant' : 'Transfer Bank',
+                            'Metode Pembayaran': this.formatPaymentMethod(item.payment),
                             'Detail Item': itemsSummary,
                             'Total Berat (g)': item.total_weight > 0 ? item.total_weight : '-',
                             'Kapan Belinya': this.formatDate(item.created_at),
-                            'Total Harga (Rp)': item.total_price
+                            'Total Harga (Rp)': item.total_price,
+                            'Status': item.status || 'Pending'
                         };
                     });
 
-                    const monthLabel = this.selectedMonth ? this.selectedMonth : 'Semua_Bulan';
+                    const activeDate = isV2 ? this.selectedDateV2 : this.selectedDate;
+                    const activeMonth = isV2 ? this.selectedMonthV2 : this.selectedMonth;
+                    
+                    let dateLabel = 'Semua_Data';
+                    if (activeDate) {
+                        dateLabel = `Tanggal_${activeDate}`;
+                    } else if (activeMonth && activeMonth !== 'Semua') {
+                        dateLabel = `Bulan_${activeMonth}`;
+                    }
 
                     if (typeof XLSX !== 'undefined') {
                         const worksheet = XLSX.utils.json_to_sheet(exportData);
                         const workbook = XLSX.utils.book_new();
                         XLSX.utils.book_append_sheet(workbook, worksheet, "Riwayat Pembelian");
-                        XLSX.writeFile(workbook, `Riwayat_Pembelian_NUHA_${monthLabel}.xlsx`);
+                        XLSX.writeFile(workbook, `${filePrefix}_${dateLabel}.xlsx`);
                     } else {
                         let csvContent = "\uFEFFNo,Nama Pelanggan,Kelas,Kamar,Metode Pembayaran,Detail Item,Total Berat,Kapan Belinya,Total Harga\n";
                         exportData.forEach(row => {
@@ -353,7 +500,7 @@
                         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                         const link = document.createElement("a");
                         link.href = URL.createObjectURL(blob);
-                        link.setAttribute("download", `Riwayat_Pembelian_NUHA_${monthLabel}.csv`);
+                        link.setAttribute("download", `${filePrefix}_${dateLabel}.csv`);
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
@@ -440,7 +587,8 @@
                 },
 
                 async executeSupabaseProductSave(isEdit, data, productId = null) {
-                    if (!db) throw new Error('Koneksi Supabase tidak terhubung!');
+                    const client = getSupabase();
+                    if (!client) throw new Error('Koneksi Supabase tidak terhubung!');
 
                     let payload = { ...data };
                     let lastError = null;
@@ -448,9 +596,9 @@
                     for (let attempt = 0; attempt < 6; attempt++) {
                         let res;
                         if (isEdit) {
-                            res = await db.from('products').update(payload).eq('id', productId).select();
+                            res = await client.from('products').update(payload).eq('id', productId).select();
                         } else {
-                            res = await db.from('products').insert([payload]).select();
+                            res = await client.from('products').insert([payload]).select();
                         }
 
                         if (!res.error) return res.data;
@@ -596,8 +744,9 @@
 
                     this.isLoading = true;
                     try {
-                        if (db) {
-                            await db.from('products').delete().eq('id', id);
+                        const client = getSupabase();
+                        if (client) {
+                            await client.from('products').delete().eq('id', id);
                         }
                         this.products = this.products.filter(p => p.id !== id);
                         this.showToast('Produk berhasil dihapus!', 'success');
@@ -621,10 +770,11 @@
 
                     this.isLoading = true;
                     try {
-                        if (db) {
-                            let { error } = await db.from('testimonials').delete().eq('id', id);
+                        const client = getSupabase();
+                        if (client) {
+                            let { error } = await client.from('testimonials').delete().eq('id', id);
                             if (error) {
-                                await db.from('reviews').delete().eq('id', id);
+                                await client.from('reviews').delete().eq('id', id);
                             }
                         }
                         this.testimonials = this.testimonials.filter(t => t.id !== id);
@@ -637,25 +787,33 @@
                     }
                 },
 
-                promptDeleteOrder(o) {
+                promptDeleteOrder(o, isV2 = false) {
                     this.deleteOrderModal.id = o.id;
                     this.deleteOrderModal.name = o.name;
+                    this.deleteOrderModal.isV2 = isV2;
                     this.deleteOrderModal.open = true;
                 },
 
                 async confirmDeleteOrder() {
                     const id = this.deleteOrderModal.id;
+                    const isV2 = this.deleteOrderModal.isV2;
                     if (!id) return;
 
                     this.isLoading = true;
                     try {
-                        if (db) {
-                            let { error } = await db.from('orders').delete().eq('id', id);
-                            if (error) {
-                                await db.from('purchases').delete().eq('id', id);
+                        const client = getSupabase();
+                        if (client) {
+                            const targetTable = isV2 ? 'orders_v2' : 'orders';
+                            let { error } = await client.from(targetTable).delete().eq('id', id);
+                            if (error && !isV2) {
+                                await client.from('purchases').delete().eq('id', id);
                             }
                         }
-                        this.orders = this.orders.filter(o => o.id !== id);
+                        if (isV2) {
+                            this.ordersV2 = this.ordersV2.filter(o => o.id !== id);
+                        } else {
+                            this.orders = this.orders.filter(o => o.id !== id);
+                        }
                         this.showToast('Riwayat pesanan berhasil dihapus!', 'success');
                     } catch(e) {
                         this.showToast('Gagal menghapus riwayat pesanan', 'error');
@@ -696,7 +854,22 @@
                 get filteredOrders() {
                     let items = [...this.orders];
                     
-                    if (this.selectedMonth && this.selectedMonth !== 'Semua') {
+                    if (this.selectedDate) {
+                        items = items.filter(o => {
+                            if (!o.created_at) return false;
+                            try {
+                                const d = new Date(o.created_at);
+                                if (isNaN(d.getTime())) return true;
+                                const year = d.getFullYear();
+                                const month = String(d.getMonth() + 1).padStart(2, '0');
+                                const day = String(d.getDate()).padStart(2, '0');
+                                return `${year}-${month}-${day}` === this.selectedDate;
+                            } catch(e) {
+                                return true;
+                            }
+                        });
+                    } 
+                    else if (this.selectedMonth && this.selectedMonth !== 'Semua') {
                         items = items.filter(o => {
                             if (!o.created_at) return false;
                             try {
@@ -723,8 +896,57 @@
                     return items;
                 },
 
+                get filteredOrdersV2() {
+                    let items = [...this.ordersV2];
+                    
+                    if (this.selectedDateV2) {
+                        items = items.filter(o => {
+                            if (!o.created_at) return false;
+                            try {
+                                const d = new Date(o.created_at);
+                                if (isNaN(d.getTime())) return true;
+                                const year = d.getFullYear();
+                                const month = String(d.getMonth() + 1).padStart(2, '0');
+                                const day = String(d.getDate()).padStart(2, '0');
+                                return `${year}-${month}-${day}` === this.selectedDateV2;
+                            } catch(e) {
+                                return true;
+                            }
+                        });
+                    }
+                    else if (this.selectedMonthV2 && this.selectedMonthV2 !== 'Semua') {
+                        items = items.filter(o => {
+                            if (!o.created_at) return false;
+                            try {
+                                const d = new Date(o.created_at);
+                                if (isNaN(d.getTime())) return true;
+                                const year = d.getFullYear();
+                                const month = String(d.getMonth() + 1).padStart(2, '0');
+                                const yearMonth = `${year}-${month}`;
+                                return yearMonth === this.selectedMonthV2;
+                            } catch(e) {
+                                return true;
+                            }
+                        });
+                    }
+
+                    if (this.searchOrderV2Query && this.searchOrderV2Query.trim()) {
+                        const q = this.searchOrderV2Query.toLowerCase().trim();
+                        items = items.filter(o => 
+                            (o.name && String(o.name).toLowerCase().includes(q)) ||
+                            (o.class_name && String(o.class_name).toLowerCase().includes(q)) ||
+                            (o.room && String(o.room).toLowerCase().includes(q))
+                        );
+                    }
+                    return items;
+                },
+
                 get getTotalOmsetBulanIni() {
                     return this.filteredOrders.reduce((sum, item) => sum + (item.total_price || 0), 0);
+                },
+
+                get getTotalOmsetV2BulanIni() {
+                    return this.filteredOrdersV2.reduce((sum, item) => sum + (item.total_price || 0), 0);
                 },
 
                 getCategoryCount(catName) {
@@ -760,11 +982,11 @@
             <form @submit.prevent="login()" class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Username Admin</label>
-                    <input type="text" x-model="loginForm.username" required placeholder="Username" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                    <input type="text" x-model="loginForm.username" required placeholder="Masukkan Username" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi</label>
-                    <input type="password" x-model="loginForm.password" required placeholder="Kata Sandi" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                    <input type="password" x-model="loginForm.password" required placeholder="Masukkan Kata Sandi" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
                 </div>
                 <button type="submit" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl transition-colors shadow-md">
                     Masuk ke Dashboard
@@ -798,7 +1020,7 @@
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
             
             <!-- STATS OVERVIEW -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
                 <div class="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs min-w-0">
                     <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1 truncate">Total Produk</span>
                     <span class="text-xl sm:text-2xl font-black text-slate-900" x-text="products.length"></span>
@@ -817,9 +1039,13 @@
                     <span class="text-[10px] sm:text-[11px] font-bold text-emerald-600 uppercase tracking-wider block mb-1 truncate">Riwayat Beli</span>
                     <span class="text-xl sm:text-2xl font-black text-emerald-600" x-text="orders.length"></span>
                 </div>
+                <div class="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-2xs min-w-0">
+                    <span class="text-[10px] sm:text-[11px] font-bold text-indigo-600 uppercase tracking-wider block mb-1 truncate">Riwayat V2</span>
+                    <span class="text-xl sm:text-2xl font-black text-indigo-600" x-text="ordersV2.length"></span>
+                </div>
             </div>
 
-            <!-- TAB NAVIGATION -->
+            <!-- TAB NAVIGATION BAR -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 pb-3 gap-3">
                 <div class="flex flex-wrap gap-2">
                     <button @click="activeTab = 'products'" :class="activeTab === 'products' ? 'bg-teal-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all">
@@ -834,14 +1060,21 @@
                         <span>Testimoni</span>
                         <span class="bg-amber-700/30 text-amber-100 text-[10px] px-2 py-0.5 rounded-full" x-text="testimonials.length"></span>
                     </button>
+                    <!-- TOMBOL RIWAYAT PEMBELIAN (WEB 1) -->
                     <button @click="activeTab = 'orders'" :class="activeTab === 'orders' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        <span>Riwayat Pembelian</span>
+                        <span>Riwayat Pembelian Web 1</span>
                         <span class="bg-emerald-800/30 text-emerald-100 text-[10px] px-2 py-0.5 rounded-full" x-text="orders.length"></span>
+                    </button>
+                    <!-- TOMBOL RIWAYAT PEMBELIAN V2 (WEB 2) -->
+                    <button @click="activeTab = 'orders_v2'" :class="activeTab === 'orders_v2' ? 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-300' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 01-2-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        <span>Riwayat Pembelian V2</span>
+                        <span class="bg-indigo-900/40 text-indigo-100 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-indigo-400/30" x-text="ordersV2.length"></span>
                     </button>
                 </div>
 
-                <button @click="fetchProducts(); fetchTestimonials(); fetchOrders()" class="self-end sm:self-auto text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-xl transition-colors flex items-center gap-1">
+                <button @click="fetchAllData()" class="self-end sm:self-auto text-xs font-bold text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-3 py-2 rounded-xl transition-colors flex items-center gap-1">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     <span>Refresh Data</span>
                 </button>
@@ -998,9 +1231,9 @@
                                     <div class="flex items-center gap-2 flex-1">
                                         <input type="number" x-model.number="vRow.price" placeholder="Harga Khusus (Opsional)" class="w-1/2 sm:w-28 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
                                         <input type="text" x-model="vRow.image" placeholder="URL Foto Varian (Opsional)" class="w-1/2 sm:flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
-                                        <template x-if="vRow.image && vRow.image.trim()">
+                                        <div x-show="vRow.image && vRow.image.trim()">
                                             <img :src="sanitizeImageUrl(vRow.image)" referrerpolicy="no-referrer" class="w-8 h-8 object-cover rounded-lg bg-slate-100 border border-slate-200 flex-shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Error';">
-                                        </template>
+                                        </div>
                                         <button type="button" @click="removeVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 text-xs font-bold">
                                             ✕
                                         </button>
@@ -1082,52 +1315,59 @@
                 </div>
             </div>
 
-            <!-- TAB 4: RIWAYAT PEMBELIAN & EXPORT SPREADSHEET -->
+            <!-- TAB 4: RIWAYAT PEMBELIAN (WEB 1) -->
             <div x-show="activeTab === 'orders'" class="space-y-4">
-                <!-- AUTO DELETE NOTICE & STATS -->
+                <!-- STATS & INFO WEB 1 -->
                 <div class="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-emerald-900">
                     <div class="flex items-center gap-2.5">
                         <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-base flex-shrink-0">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         </div>
                         <div>
-                            <span class="font-bold block text-emerald-950">Pembersihan Otomatis 1 Bulan (30 Hari)</span>
-                            <span class="text-emerald-700">Riwayat transaksi yang berumur lebih dari 30 hari secara otomatis dibersihkan.</span>
+                            <span class="font-bold block text-emerald-950">Riwayat Pesanan Website 1 (Sistem Utama)</span>
+                            <span class="text-emerald-700">Daftar transaksi pesanan yang masuk melalui website versi 1.</span>
                         </div>
                     </div>
                     <div class="bg-white px-4 py-2 rounded-xl border border-emerald-200/80 font-bold text-xs flex items-center gap-2 self-stretch sm:self-auto justify-between">
-                        <span class="text-slate-500">Omset Bulan Ini:</span>
+                        <span class="text-slate-500">Omset Filtered Web 1:</span>
                         <span class="text-emerald-700 text-sm" x-text="formatRupiah(getTotalOmsetBulanIni)"></span>
                     </div>
                 </div>
 
-                <!-- SEARCH, FILTER MONTH & EXPORT BUTTON -->
-                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-                    <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-                        <input type="text" x-model="searchOrderQuery" placeholder="Cari nama, kelas, atau kamar..." class="w-full sm:w-72 px-4 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                <!-- SEARCH, FILTER DATE, MONTH & EXPORT BUTTON (WEB 1) -->
+                <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+                    <div class="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full lg:w-auto">
+                        <input type="text" x-model="searchOrderQuery" placeholder="Cari nama, kelas, atau kamar..." class="w-full sm:w-60 px-4 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                         
-                        <div class="flex items-center gap-2 w-full sm:w-auto">
-                            <span class="text-xs font-bold text-slate-500 whitespace-nowrap">Bulan:</span>
-                            <button @click="selectedMonth = 'Semua'" :class="selectedMonth === 'Semua' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'" class="px-3 py-1.5 rounded-xl text-xs font-bold transition-colors">
-                                Semua Bulan
-                            </button>
-                            <input type="month" x-model="selectedMonth" class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-slate-50">
+                        <div class="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-xs">
+                            <span class="font-bold text-slate-500 px-1 whitespace-nowrap">Tanggal:</span>
+                            <input type="date" x-model="selectedDate" @change="if(selectedDate) selectedMonth = 'Semua'" class="px-2 py-1 rounded-lg border border-slate-200 text-xs font-semibold focus:ring-1 focus:ring-emerald-500 focus:outline-none bg-white">
                         </div>
+
+                        <div class="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-xs">
+                            <span class="font-bold text-slate-500 px-1 whitespace-nowrap">Bulan:</span>
+                            <input type="month" x-model="selectedMonth" @change="if(selectedMonth !== 'Semua') selectedDate = ''" class="px-2 py-1 rounded-lg border border-slate-200 text-xs font-semibold focus:ring-1 focus:ring-emerald-500 focus:outline-none bg-white">
+                        </div>
+
+                        <button @click="resetFilters(false)" x-show="selectedDate || selectedMonth !== 'Semua' || searchOrderQuery" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-colors">
+                            Reset
+                        </button>
                     </div>
 
-                    <button @click="exportToSpreadsheet()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 text-xs">
+                    <button @click="exportToSpreadsheet(false)" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 text-xs flex-shrink-0">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        <span>Export Spreadsheet (.xlsx)</span>
+                        <span>Export Excel (<span x-text="filteredOrders.length"></span>)</span>
                     </button>
                 </div>
 
-                <!-- TABLE RIWAYAT PEMBELIAN -->
+                <!-- TABLE RIWAYAT PEMBELIAN (WEB 1) -->
                 <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs border-collapse">
                             <thead>
                                 <tr class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200">
                                     <th class="p-4 w-12 text-center">No</th>
+                                    <th class="p-4">Sumber Web</th>
                                     <th class="p-4">Nama Pelanggan</th>
                                     <th class="p-4">Kelas</th>
                                     <th class="p-4">Kamar / Asrama</th>
@@ -1138,25 +1378,34 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                <template x-for="(o, idx) in filteredOrders" :key="o.id || idx">
+                                <template x-for="(o, idx) in filteredOrders" :key="o.id">
                                     <tr class="hover:bg-slate-50/80 transition-colors">
                                         <td class="p-4 font-bold text-slate-400 text-center" x-text="idx + 1"></td>
+                                        <td class="p-4 whitespace-nowrap">
+                                            <span class="bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-1 rounded-md text-[10px] border border-emerald-200 flex items-center gap-1 w-max">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                                                <span>Dari Web 1</span>
+                                            </span>
+                                        </td>
                                         <td class="p-4 font-bold text-slate-900 whitespace-nowrap" x-text="o.name"></td>
                                         <td class="p-4 whitespace-nowrap font-semibold text-slate-700" x-text="o.class_name"></td>
                                         <td class="p-4 whitespace-nowrap font-semibold text-slate-700" x-text="o.room"></td>
                                         <td class="p-4 whitespace-nowrap">
-                                            <span :class="o.payment === 'qris' ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'" class="px-2.5 py-1 rounded-md text-[10px] font-bold border">
-                                                <span x-text="o.payment === 'qris' ? 'QRIS Instant' : 'Transfer Bank'"></span>
+                                            <span :class="getPaymentBadgeClass(o.payment)" class="px-2.5 py-1 rounded-md text-[10px] font-bold border">
+                                                <span x-text="formatPaymentMethod(o.payment)"></span>
                                             </span>
                                         </td>
                                         <td class="p-4 text-slate-600 text-[11px] whitespace-nowrap" x-text="formatDate(o.created_at)"></td>
                                         <td class="p-4 font-bold text-emerald-600 whitespace-nowrap" x-text="formatRupiah(o.total_price)"></td>
                                         <td class="p-4 text-right whitespace-nowrap space-x-1.5">
+                                            <button @click="printReceipt(o)" title="Cetak Nota Struk" class="bg-slate-800 hover:bg-slate-900 text-white font-bold p-1.5 rounded-lg transition-colors inline-flex items-center text-xs">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                            </button>
                                             <button @click="viewOrderDetails(o)" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1 text-xs">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                                 <span>Detail</span>
                                             </button>
-                                            <button @click="promptDeleteOrder(o)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1 text-xs">
+                                            <button @click="promptDeleteOrder(o, false)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1 text-xs">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                                 <span>Hapus</span>
                                             </button>
@@ -1165,8 +1414,119 @@
                                 </template>
 
                                 <tr x-show="filteredOrders.length === 0">
-                                    <td colspan="8" class="p-12 text-center text-slate-400 font-bold">
-                                        Belum ada riwayat pembelian ditemukan.
+                                    <td colspan="9" class="p-12 text-center text-slate-400 font-bold">
+                                        Belum ada riwayat pembelian ditemukan untuk filter tanggal/bulan ini.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: RIWAYAT PEMBELIAN V2 (WEB 2) -->
+            <div x-show="activeTab === 'orders_v2'" class="space-y-4">
+                <!-- AUTO DELETE NOTICE & STATS V2 -->
+                <div class="bg-indigo-50 border border-indigo-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-indigo-900">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-base flex-shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 01-2-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        </div>
+                        <div>
+                            <span class="font-bold block text-indigo-950">Riwayat Pesanan Website V2 (Sistem V2)</span>
+                            <span class="text-indigo-700">Setiap pesanan dari Web V2 ditandai dengan badge khusus <strong class="underline">Dari Web V2</strong>.</span>
+                        </div>
+                    </div>
+                    <div class="bg-white px-4 py-2 rounded-xl border border-indigo-200/80 font-bold text-xs flex items-center gap-2 self-stretch sm:self-auto justify-between">
+                        <span class="text-slate-500">Omset Filtered V2:</span>
+                        <span class="text-indigo-700 text-sm" x-text="formatRupiah(getTotalOmsetV2BulanIni)"></span>
+                    </div>
+                </div>
+
+                <!-- SEARCH, FILTER DATE, MONTH & EXPORT BUTTON (WEB 2) -->
+                <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+                    <div class="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full lg:w-auto">
+                        <input type="text" x-model="searchOrderV2Query" placeholder="Cari nama, kelas, atau kamar (V2)..." class="w-full sm:w-60 px-4 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        
+                        <div class="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-xs">
+                            <span class="font-bold text-slate-500 px-1 whitespace-nowrap">Tanggal:</span>
+                            <input type="date" x-model="selectedDateV2" @change="if(selectedDateV2) selectedMonthV2 = 'Semua'" class="px-2 py-1 rounded-lg border border-slate-200 text-xs font-semibold focus:ring-1 focus:ring-indigo-500 focus:outline-none bg-white">
+                        </div>
+
+                        <div class="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-xs">
+                            <span class="font-bold text-slate-500 px-1 whitespace-nowrap">Bulan:</span>
+                            <input type="month" x-model="selectedMonthV2" @change="if(selectedMonthV2 !== 'Semua') selectedDateV2 = ''" class="px-2 py-1 rounded-lg border border-slate-200 text-xs font-semibold focus:ring-1 focus:ring-indigo-500 focus:outline-none bg-white">
+                        </div>
+
+                        <button @click="resetFilters(true)" x-show="selectedDateV2 || selectedMonthV2 !== 'Semua' || searchOrderV2Query" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-colors">
+                            Reset
+                        </button>
+                    </div>
+
+                    <button @click="exportToSpreadsheet(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 text-xs flex-shrink-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <span>Export V2 Excel (<span x-text="filteredOrdersV2.length"></span>)</span>
+                    </button>
+                </div>
+
+                <!-- TABLE RIWAYAT PEMBELIAN V2 -->
+                <div class="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-indigo-50/70 text-indigo-900 font-bold uppercase tracking-wider border-b border-indigo-100">
+                                    <th class="p-4 w-12 text-center">No</th>
+                                    <th class="p-4">Sumber Web</th>
+                                    <th class="p-4">ID Pesanan</th>
+                                    <th class="p-4">Nama Pelanggan</th>
+                                    <th class="p-4">Kelas</th>
+                                    <th class="p-4">Kamar / Asrama</th>
+                                    <th class="p-4">Pembayaran</th>
+                                    <th class="p-4">Kapan Belinya</th>
+                                    <th class="p-4">Total Harga</th>
+                                    <th class="p-4 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <template x-for="(o, idx) in filteredOrdersV2" :key="o.id">
+                                    <tr class="hover:bg-indigo-50/40 transition-colors">
+                                        <td class="p-4 font-bold text-slate-400 text-center" x-text="idx + 1"></td>
+                                        <td class="p-4 whitespace-nowrap">
+                                            <span class="bg-indigo-100 text-indigo-800 font-extrabold px-2.5 py-1 rounded-md text-[10px] border border-indigo-200 flex items-center gap-1 w-max shadow-2xs">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse"></span>
+                                                <span>Dari Web V2</span>
+                                            </span>
+                                        </td>
+                                        <td class="p-4 font-mono font-bold text-indigo-700 whitespace-nowrap" x-text="o.order_id || o.id"></td>
+                                        <td class="p-4 font-bold text-slate-900 whitespace-nowrap" x-text="o.name"></td>
+                                        <td class="p-4 whitespace-nowrap font-semibold text-slate-700" x-text="o.class_name"></td>
+                                        <td class="p-4 whitespace-nowrap font-semibold text-slate-700" x-text="o.room"></td>
+                                        <td class="p-4 whitespace-nowrap">
+                                            <span :class="getPaymentBadgeClass(o.payment)" class="px-2.5 py-1 rounded-md text-[10px] font-bold border">
+                                                <span x-text="formatPaymentMethod(o.payment)"></span>
+                                            </span>
+                                        </td>
+                                        <td class="p-4 text-slate-600 text-[11px] whitespace-nowrap" x-text="formatDate(o.created_at)"></td>
+                                        <td class="p-4 font-bold text-indigo-600 whitespace-nowrap" x-text="formatRupiah(o.total_price)"></td>
+                                        <td class="p-4 text-right whitespace-nowrap space-x-1.5">
+                                            <button @click="printReceipt(o)" title="Cetak Nota Struk" class="bg-slate-800 hover:bg-slate-900 text-white font-bold p-1.5 rounded-lg transition-colors inline-flex items-center text-xs">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                            </button>
+                                            <button @click="viewOrderDetails(o)" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1 text-xs shadow-2xs">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                <span>Detail</span>
+                                            </button>
+                                            <button @click="promptDeleteOrder(o, true)" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1 text-xs">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                <span>Hapus</span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+
+                                <tr x-show="filteredOrdersV2.length === 0">
+                                    <td colspan="10" class="p-12 text-center text-slate-400 font-bold">
+                                        Belum ada riwayat pembelian ditemukan untuk Web V2 pada filter ini.
                                     </td>
                                 </tr>
                             </tbody>
@@ -1180,6 +1540,91 @@
         <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400">
             &copy; 2026 Nuha Delivery Panel. Dikelola oleh Unit Usaha dan Ekonomi Nurul Hayah.
         </footer>
+    </div>
+
+    <!-- MODAL STRUK CETAK NOTA -->
+    <div x-show="openReceiptModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs overflow-y-auto">
+        <div @click.outside="openReceiptModal = false" class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl relative border border-slate-200 my-8">
+            <button @click="openReceiptModal = false" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 print:hidden">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div x-show="selectedReceiptOrder" id="receipt-printable" class="space-y-4 text-slate-900 font-mono text-xs">
+                <!-- HEADER STRUK -->
+                <div class="text-center border-b border-dashed border-slate-300 pb-3">
+                    <h3 class="text-base font-black tracking-tight font-sans">NUHA DELIVERY</h3>
+                    <p class="text-[10px] text-slate-500 font-sans">Unit Usaha & Ekonomi Nurul Hayah</p>
+                    <p class="text-[10px] text-slate-400 mt-1 font-sans" x-text="selectedReceiptOrder ? 'Tanggal: ' + formatDate(selectedReceiptOrder.created_at) : ''"></p>
+                </div>
+
+                <!-- DATA PEMESAN -->
+                <div class="space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-200 font-sans" x-show="selectedReceiptOrder">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Sumber Web:</span>
+                        <span class="font-bold text-indigo-700" x-text="selectedReceiptOrder ? (selectedReceiptOrder.isV2 ? 'Website V2' : 'Website 1') : ''"></span>
+                    </div>
+                    <div class="flex justify-between" x-show="selectedReceiptOrder && selectedReceiptOrder.order_id">
+                        <span class="text-slate-500">ID Pesanan:</span>
+                        <span class="font-bold text-slate-900" x-text="selectedReceiptOrder ? selectedReceiptOrder.order_id : ''"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Nama Santri:</span>
+                        <span class="font-bold text-slate-900" x-text="selectedReceiptOrder ? selectedReceiptOrder.name : ''"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Kelas:</span>
+                        <span class="font-bold text-slate-800" x-text="selectedReceiptOrder ? selectedReceiptOrder.class_name : ''"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Asrama / Kamar:</span>
+                        <span class="font-bold text-slate-800" x-text="selectedReceiptOrder ? selectedReceiptOrder.room : ''"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Metode Bayar:</span>
+                        <span class="font-bold text-teal-700 uppercase" x-text="selectedReceiptOrder ? formatPaymentMethod(selectedReceiptOrder.payment) : ''"></span>
+                    </div>
+                </div>
+
+                <!-- BARANG -->
+                <div class="border-b border-dashed border-slate-300 pb-3 space-y-1" x-show="selectedReceiptOrder">
+                    <div class="font-bold text-[11px] text-slate-500 uppercase mb-2 font-sans">Rincian Item Dipesan:</div>
+                    <div x-show="selectedReceiptOrder && Array.isArray(selectedReceiptOrder.items) && selectedReceiptOrder.items.length > 0" class="space-y-1.5">
+                        <template x-for="(it, itIdx) in (selectedReceiptOrder ? selectedReceiptOrder.items : [])" :key="itIdx">
+                            <div class="flex justify-between text-xs">
+                                <div>
+                                    <span x-text="it.name || it.nama"></span>
+                                    <span x-show="it.selectedVariant" class="text-[10px] text-slate-500 block" x-text="'Varian: ' + it.selectedVariant"></span>
+                                </div>
+                                <div class="text-right font-bold" x-text="'x' + (it.qty || 1) + ' (' + formatRupiah((it.price || 0) * (it.qty || 1)) + ')'"></div>
+                            </div>
+                        </template>
+                    </div>
+                    <div x-show="selectedReceiptOrder && (!Array.isArray(selectedReceiptOrder.items) || selectedReceiptOrder.items.length === 0) && selectedReceiptOrder.items_summary" class="text-xs text-slate-700 font-sans" x-text="selectedReceiptOrder ? selectedReceiptOrder.items_summary : ''"></div>
+                </div>
+
+                <!-- TOTAL -->
+                <div class="flex justify-between text-sm font-black border-b border-dashed border-slate-300 pb-3 font-sans" x-show="selectedReceiptOrder">
+                    <span>TOTAL TAGIHAN:</span>
+                    <span class="text-emerald-700" x-text="selectedReceiptOrder ? formatRupiah(selectedReceiptOrder.total_price) : ''"></span>
+                </div>
+
+                <!-- FOOTER STRUK -->
+                <div class="text-center text-[10px] text-slate-500 pt-2 font-sans space-y-1">
+                    <p class="font-bold">Terima kasih telah berbelanja di NUHA DELIVERY!</p>
+                    <p>Pesanan ini diantar langsung ke Kamar/Asrama Santri.</p>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2 print:hidden font-sans">
+                    <button @click="openReceiptModal = false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">
+                        Tutup
+                    </button>
+                    <button @click="triggerPrintWindow()" class="px-5 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        <span>Cetak Nota Struk</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL EDIT PRODUK -->
@@ -1264,9 +1709,9 @@
                                 </div>
                                 <div class="col-span-5 sm:col-span-3 flex items-center gap-1.5">
                                     <input type="text" x-model="vRow.image" placeholder="URL Foto Varian" class="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-teal-500 focus:outline-none">
-                                    <template x-if="vRow.image && vRow.image.trim()">
+                                    <div x-show="vRow.image && vRow.image.trim()">
                                         <img :src="sanitizeImageUrl(vRow.image)" referrerpolicy="no-referrer" class="w-7 h-7 object-cover rounded-lg bg-slate-100 border border-slate-200 flex-shrink-0" onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=Error';">
-                                    </template>
+                                    </div>
                                 </div>
                                 <div class="col-span-1 text-right">
                                     <button type="button" @click="removeEditVariantRow(vIdx)" class="text-rose-500 hover:text-rose-700 p-1 text-xs font-bold">✕</button>
@@ -1288,7 +1733,7 @@
         </div>
     </div>
 
-    <!-- MODAL DETAIL PESANAN (RINCIAN DARI KANTONG BELANJA & CHECKOUT) -->
+    <!-- MODAL DETAIL PESANAN -->
     <div x-show="openOrderDetailModal" x-cloak x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto">
         <div @click.outside="openOrderDetailModal = false" class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-8">
             <button @click="openOrderDetailModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
@@ -1297,7 +1742,7 @@
 
             <div class="flex items-center gap-3 mb-4">
                 <div class="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 022 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                 </div>
                 <div>
                     <h3 class="text-lg font-black text-slate-900">Rincian Transaksi Pesanan</h3>
@@ -1305,72 +1750,72 @@
                 </div>
             </div>
 
-            <template x-if="selectedOrderDetails">
-                <div class="space-y-4">
-                    <!-- INFORMASI PEMESAN -->
-                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
-                        <div class="flex justify-between">
-                            <span class="text-slate-500">Nama Pemesan:</span>
-                            <span class="font-bold text-slate-900" x-text="selectedOrderDetails.name"></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-500">Kelas:</span>
-                            <span class="font-bold text-slate-800" x-text="selectedOrderDetails.class_name"></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-500">Asrama / Kamar:</span>
-                            <span class="font-bold text-slate-800" x-text="selectedOrderDetails.room"></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-500">Metode Pembayaran:</span>
-                            <span class="font-bold text-teal-700 uppercase" x-text="selectedOrderDetails.payment === 'qris' ? 'QRIS Instant' : 'Transfer Bank'"></span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-500">Waktu Pembelian:</span>
-                            <span class="font-semibold text-slate-700" x-text="formatDate(selectedOrderDetails.created_at)"></span>
-                        </div>
+            <div x-show="selectedOrderDetails" class="space-y-4">
+                <!-- INFORMASI PEMESAN -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500">Sumber Website:</span>
+                        <span :class="selectedOrderDetails && selectedOrderDetails.isV2 ? 'bg-indigo-100 text-indigo-800 border-indigo-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200'" class="font-extrabold px-2.5 py-0.5 rounded-md text-[11px] border" x-text="selectedOrderDetails ? (selectedOrderDetails.isV2 ? 'Dari Web V2' : 'Dari Web 1') : ''"></span>
                     </div>
-
-                    <!-- TABEL ITEM PESANAN -->
-                    <div class="space-y-2">
-                        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Item Dipesan</h4>
-                        <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden max-h-48 overflow-y-auto">
-                            <template x-if="Array.isArray(selectedOrderDetails.items) && selectedOrderDetails.items.length > 0">
-                                <div class="divide-y divide-slate-100">
-                                    <template x-for="(it, idx) in selectedOrderDetails.items" :key="idx">
-                                        <div class="p-3 flex items-center justify-between text-xs">
-                                            <div>
-                                                <p class="font-bold text-slate-900" x-text="it.name || it.nama"></p>
-                                                <p x-show="it.selectedVariant" class="text-[10px] text-teal-600 font-semibold" x-text="'Varian: ' + it.selectedVariant"></p>
-                                            </div>
-                                            <div class="text-right">
-                                                <p class="font-bold text-slate-800" x-text="'x' + (it.qty || 1) + ' (' + formatRupiah((it.price || 0) * (it.qty || 1)) + ')'"></p>
-                                            </div>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
-                            <template x-if="!Array.isArray(selectedOrderDetails.items) || selectedOrderDetails.items.length === 0">
-                                <div class="p-4 text-center text-xs text-slate-400 italic">
-                                    Detail rincian barang tidak disertakan secara spesifik pada data ini.
-                                </div>
-                            </template>
-                        </div>
+                    <div class="flex justify-between" x-show="selectedOrderDetails && selectedOrderDetails.order_id">
+                        <span class="text-slate-500">ID Pesanan:</span>
+                        <span class="font-mono font-bold text-slate-900" x-text="selectedOrderDetails ? selectedOrderDetails.order_id : ''"></span>
                     </div>
-
-                    <!-- RINGKASAN TAGIHAN -->
-                    <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between text-sm font-bold text-emerald-950">
-                        <span>Total Tagihan Pesanan:</span>
-                        <span class="text-emerald-700 text-lg font-black" x-text="formatRupiah(selectedOrderDetails.total_price)"></span>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Nama Pemesan:</span>
+                        <span class="font-bold text-slate-900" x-text="selectedOrderDetails ? selectedOrderDetails.name : ''"></span>
                     </div>
-
-                    <div class="flex justify-end pt-2">
-                        <button @click="openOrderDetailModal = false" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors">
-                            Tutup Detail
-                        </button>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Kelas:</span>
+                        <span class="font-bold text-slate-800" x-text="selectedOrderDetails ? selectedOrderDetails.class_name : ''"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Asrama / Kamar:</span>
+                        <span class="font-bold text-slate-800" x-text="selectedOrderDetails ? selectedOrderDetails.room : ''"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Metode Pembayaran:</span>
+                        <span class="font-bold text-teal-700 uppercase" x-text="selectedOrderDetails ? formatPaymentMethod(selectedOrderDetails.payment) : ''"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Waktu Pembelian:</span>
+                        <span class="font-semibold text-slate-700" x-text="selectedOrderDetails ? formatDate(selectedOrderDetails.created_at) : ''"></span>
                     </div>
                 </div>
-            </template>
+
+                <!-- TABEL ITEM PESANAN -->
+                <div class="space-y-2">
+                    <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Item Dipesan</h4>
+                    <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden max-h-48 overflow-y-auto">
+                        <div x-show="selectedOrderDetails && Array.isArray(selectedOrderDetails.items) && selectedOrderDetails.items.length > 0" class="divide-y divide-slate-100">
+                            <template x-for="(it, idx) in (selectedOrderDetails ? selectedOrderDetails.items : [])" :key="idx">
+                                <div class="p-3 flex items-center justify-between text-xs">
+                                    <div>
+                                        <p class="font-bold text-slate-900" x-text="it.name || it.nama"></p>
+                                        <p x-show="it.selectedVariant" class="text-[10px] text-teal-600 font-semibold" x-text="'Varian: ' + it.selectedVariant"></p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="font-bold text-slate-800" x-text="'x' + (it.qty || 1) + ' (' + formatRupiah((it.price || 0) * (it.qty || 1)) + ')'"></p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        <div x-show="selectedOrderDetails && (!Array.isArray(selectedOrderDetails.items) || selectedOrderDetails.items.length === 0) && selectedOrderDetails.items_summary" class="p-4 text-xs text-slate-700 font-medium" x-text="selectedOrderDetails ? selectedOrderDetails.items_summary : ''"></div>
+                    </div>
+                </div>
+
+                <!-- RINGKASAN TAGIHAN -->
+                <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between text-sm font-bold text-emerald-950">
+                    <span>Total Tagihan Pesanan:</span>
+                    <span class="text-emerald-700 text-lg font-black" x-text="selectedOrderDetails ? formatRupiah(selectedOrderDetails.total_price) : ''"></span>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button @click="openOrderDetailModal = false" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors">
+                        Tutup Detail
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1424,7 +1869,7 @@
             </div>
             <div>
                 <h4 class="text-base font-black text-slate-900">Hapus Riwayat Pesanan Ini?</h4>
-                <p class="text-xs text-slate-500 mt-1">Anda akan menghapus riwayat pesanan dari <span class="font-bold text-slate-800" x-text="deleteOrderModal.name"></span> secara permanen dari Supabase.</p>
+                <p class="text-xs text-slate-500 mt-1">Anda akan menghapus riwayat pesanan dari <span class="font-bold text-slate-800" x-text="deleteOrderModal.name"></span> secara permanen.</p>
             </div>
             <div class="flex gap-2 pt-2">
                 <button @click="deleteOrderModal.open = false" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors">
