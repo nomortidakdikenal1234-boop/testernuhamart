@@ -1507,12 +1507,6 @@
                     <a href="#kategori" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Kategori</a>
                     <a href="#produk" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Produk</a>
                     <a href="#ulasan" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Rating & Ulasan</a>
-                    
-                    <!-- TOMBOL RIWAYAT PEMBELIAN V2 (PELANGGAN) -->
-                    <button x-show="isCustomerLoggedIn" @click="fetchOrders(); showCustomerOrdersModal = true" class="px-3.5 py-1.5 bg-teal-50 text-teal-700 font-bold rounded-xl hover:bg-teal-100 transition-colors text-xs flex items-center gap-1.5 border border-teal-200 shadow-2xs">
-                        <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>Riwayat Pembelian V2</span>
-                    </button>
 
                     <!-- ADMIN QUICK EXCEL & ORDERS ACCESS BUTTON -->
                     <button x-show="isAdminLoggedIn" @click="fetchOrders(); showOrdersAdminModal = true" class="px-3.5 py-1.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors text-xs flex items-center gap-1.5 shadow-sm">
@@ -2413,38 +2407,62 @@
 
             <!-- IF NOT LOGGED IN -->
             <template x-if="!isAdminLoggedIn && !isCustomerLoggedIn">
-                <div>
-                    <div class="flex border-b border-slate-200 mb-6">
-                        <button @click="authTab = 'customer'" :class="authTab === 'customer' ? 'border-b-2 border-teal-600 text-teal-600 font-bold' : 'text-slate-400 font-medium'" class="flex-1 py-2 text-xs text-center">Pelanggan</button>
-                        <button @click="authTab = 'admin'" :class="authTab === 'admin' ? 'border-b-2 border-teal-600 text-teal-600 font-bold' : 'text-slate-400 font-medium'" class="flex-1 py-2 text-xs text-center">Admin</button>
+                <div class="space-y-5">
+                    <!-- LOGO DI ATAS -->
+                    <div class="text-center pt-2">
+                        <img :src="logoUrl" alt="Nuha Delivery" class="h-10 sm:h-12 w-auto object-contain mx-auto" onerror="this.onerror=null; this.src='https://i.ibb.co.com/5WJBJkGf/Whats-App-Image-2026-08-10-at-09-43-38-removebg-preview.png'">
                     </div>
 
-                    <!-- CUSTOMER LOGIN TAB -->
-                    <div x-show="authTab === 'customer'" class="space-y-4">
-                        <h3 class="text-lg font-extrabold text-slate-900">Masuk Pelanggan</h3>
-                        <form @submit.prevent="loginCustomer()" class="space-y-3">
+                    <!-- SUB TABS (MASUK / DAFTAR) -->
+                    <div class="flex justify-center gap-2">
+                        <button type="button" 
+                                @click="customerAuthMode = 'login'" 
+                                :class="customerAuthMode === 'login' ? 'bg-teal-50 border border-teal-500 text-teal-600 font-bold' : 'bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100'"
+                                class="px-4 py-1.5 rounded-xl text-xs transition-all">
+                            Masuk (Login)
+                        </button>
+                        <button type="button" 
+                                @click="customerAuthMode = 'register'" 
+                                :class="customerAuthMode === 'register' ? 'bg-teal-50 border border-teal-500 text-teal-600 font-bold' : 'bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100'"
+                                class="px-4 py-1.5 rounded-xl text-xs transition-all">
+                            Daftar Baru
+                        </button>
+                    </div>
+
+                    <!-- FORM LOGIN PELANGGAN -->
+                    <div x-show="customerAuthMode === 'login'">
+                        <form @submit.prevent="loginCustomer()" class="space-y-3.5">
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</label>
-                                <input type="text" x-model="customerForm.username" required placeholder="Masukkan Nama Anda" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Username</label>
+                                <input type="text" x-model="customerForm.username" required placeholder="Masukkan username" class="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white placeholder-slate-300">
                             </div>
-                            <button type="submit" class="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors">
-                                Masuk & Simpan Nama
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi</label>
+                                <input type="password" x-model="customerForm.password" placeholder="Masukkan kata sandi" class="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white placeholder-slate-300">
+                            </div>
+                            <button type="submit" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-2xl shadow-xs transition-colors mt-2">
+                                Masuk Akun
                             </button>
                         </form>
                     </div>
 
-                    <!-- ADMIN LOGIN TAB -->
-                    <div x-show="authTab === 'admin'" class="space-y-4">
-                        <h3 class="text-lg font-extrabold text-slate-900">Login Administrator</h3>
-                        <form @submit.prevent="loginAdmin()" class="space-y-3">
+                    <!-- FORM DAFTAR PELANGGAN -->
+                    <div x-show="customerAuthMode === 'register'" x-cloak>
+                        <form @submit.prevent="registerCustomer()" class="space-y-3.5">
                             <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Username Admin</label>
-                                <input type="text" x-model="adminForm.username" placeholder="admin" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white mb-2">
-                                <label class="block text-xs font-bold text-slate-700 mb-1">Password Admin</label>
-                                <input type="password" x-model="adminForm.password" required placeholder="Masukkan Password Admin" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Username Baru</label>
+                                <input type="text" x-model="customerRegForm.username" required placeholder="Masukkan username baru" class="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white placeholder-slate-300">
                             </div>
-                            <button type="submit" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors">
-                                Login Admin
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">No. WhatsApp / HP</label>
+                                <input type="tel" x-model="customerRegForm.phone" placeholder="08xxxxxxxxxx" class="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white placeholder-slate-300">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Kata Sandi</label>
+                                <input type="password" x-model="customerRegForm.password" required placeholder="Buat kata sandi" class="w-full px-4 py-3 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white placeholder-slate-300">
+                            </div>
+                            <button type="submit" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-2xl shadow-xs transition-colors mt-2">
+                                Daftar Akun Baru
                             </button>
                         </form>
                     </div>
