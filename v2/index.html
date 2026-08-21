@@ -145,6 +145,7 @@
                 showOrdersAdminModal: false,
                 quickViewModal: false,
                 openAuthModal: false,
+                showCustomerOrdersModal: false,
                 isSubmittingOrder: false,
 
                 lastCompletedOrder: null,
@@ -654,27 +655,40 @@
                             .order('id', { ascending: false });
 
                         if (!error && data) {
-                            this.reviews = data
-                                .filter(r => r.name !== 'Siti Rahma' && r.name !== 'Ahmad Subagja')
-                                .map(r => ({
-                                    ...r,
-                                    rating: Number(r.rating || 5)
-                                }));
+                            this.reviews = data;
                         }
                     } catch (e) {
-                        console.warn('Gagal memuat ulasan dari Supabase:', e.message);
+                        console.warn('Gagal memuat ulasan:', e);
                     }
+                },
+
+                get customerOrders() {
+                    if (!this.loggedInCustomerName) return [];
+                    const name = this.loggedInCustomerName.toLowerCase().trim();
+                    return (this.ordersList || []).filter(o => 
+                        (o.name && o.name.toLowerCase().trim().includes(name)) ||
+                        (o.customer_username && o.customer_username.toLowerCase().trim() === name)
+                    );
                 },
 
                 async fetchOrders() {
                     try {
                         let localOrders = [];
                         try {
-                            localOrders = JSON.parse(localStorage.getItem('nuha_local_orders') || '[]');
+                            localOrders = JSON.parse(localStorage.getItem('nuha_local_orders_v2') || localStorage.getItem('nuha_local_orders') || '[]');
                         } catch(e){}
 
                         if (db) {
-                            const { data, error } = await db.from('orders').select('*').order('created_at', { ascending: false });
+                            // Coba ambil dari tabel orders_v2 khusus
+                            let { data, error } = await db.from('orders_v2').select('*').order('created_at', { ascending: false });
+                            
+                            // Jika gagal/belum ada tabel orders_v2, fallback ke tabel orders
+                            if (error || !data) {
+                                const res = await db.from('orders').select('*').order('created_at', { ascending: false });
+                                data = res.data;
+                                error = res.error;
+                            }
+
                             if (!error && data) {
                                 this.ordersList = data;
                                 return;
@@ -685,11 +699,114 @@
                         console.warn('Fetch orders notice:', e);
                     }
                 },
+                // DIRECT CHECKOUT LOGIC: RECORD TO EXCEL & DATABASE KHUSUS V2
+                async processDirectCheckout() {
+                    if (!this.checkoutForm.nama || !this.checkoutForm.nama.trim()) {
+                        this.showToast('Silakan isi Nama Pemesan / Anak terlebih dahulu!');
+                        return;
+                    }
 
-                openCatalogForCategory(catName) {
-                    this.selectedCatalogCategory = catName;
-                    this.showAllCatalogView = true;
-                    this.scrollToSection('produk');
+                    if (!this.checkoutForm.kelas || !this.checkoutForm.kelas.trim()) {
+                        this.showToast('Silakan isi Kelas terlebih dahulu!');
+                        return;
+                    }
+
+                    if (!this.checkoutForm.asrama || !this.checkoutForm.asrama.trim()) {
+                        this.showToast('Silakan isi Asrama / Kamar terlebih dahulu!');
+                        return;
+                    }
+
+                    if (!this.cart || this.cart.length === 0) {
+                        this.showToast('Keranjang belanja Anda masih kosong!');
+                        return;
+                    }
+
+                    this.isSubmittingOrder = true;
+                    const orderId = 'NH2-' + Date.now().toString().slice(-6);
+                    const nowIso = new Date().toISOString();
+                    
+                    const paymentLabel = 'Cash / Tunai';
+
+                    // Format items list summary for Excel
+                    const itemsSummaryText = this.cart.map(item => {
+                        const vStr = item.selectedVariant ? ` (${item.selectedVariant})` : '';
+                        return `${item.name}${vStr} x${item.qty} = ${this.formatRupiah(item.price * item.qty)}`;
+                    }).join(' | ');
+
+                    const orderData = {
+                        order_id: orderId,
+                        app_version: 'V2',
+                        source: 'V2',
+                        customer_username: this.loggedInCustomerName || this.checkoutForm.nama.trim(),
+                        name: this.checkoutForm.nama.trim(),
+                        class_name: this.checkoutForm.kelas.trim(),
+                        room: this.checkoutForm.asrama.trim(),
+                        payment: paymentLabel,
+                        items: this.cart,
+                        items_summary: itemsSummaryText,
+                        total_weight: this.cartTotalWeight,
+                        total_price: this.cartSubtotal,
+                        status: 'Pending',
+                        created_at: nowIso
+                    };
+
+                    // 1. SAVE TO SUPABASE (MEMBEDAKAN DATABASE V2)
+                    try {
+                        if (db) {
+                            // Coba simpan ke tabel orders_v2 terlebih dahulu
+                            const { error: v2Error } = await db.from('orders_v2').insert([orderData]);
+                            if (v2Error) {
+                                // Fallback ke tabel orders biasa dengan tag source 'V2'
+                                await db.from('orders').insert([orderData]);
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('Supabase order insert note:', err);
+                    }
+
+                    // Backup ke localStorage terpisah khusus V2
+                    try {
+                        let existingLocal = JSON.parse(localStorage.getItem('nuha_local_orders_v2') || '[]');
+                        existingLocal.unshift(orderData);
+                        localStorage.setItem('nuha_local_orders_v2', JSON.stringify(existingLocal));
+                    } catch(e) {}
+
+                    // 2. OPTIONAL: STREAM LIVE TO GOOGLE SHEET WEBHOOK IF CONFIGURED
+                    if (this.googleSheetUrl && this.googleSheetUrl.trim()) {
+                        try {
+                            const sheetPayload = {
+                                "Versi Web": "V2",
+                                "Tanggal": new Date().toLocaleString('id-ID'),
+                                "ID Pesanan": orderId,
+                                "Nama Pemesan": orderData.name,
+                                "Kelas": orderData.class_name,
+                                "Asrama": orderData.room,
+                                "Daftar Pesanan": itemsSummaryText,
+                                "Total Berat (g)": orderData.total_weight,
+                                "Total Harga": orderData.total_price,
+                                "Metode Pembayaran": paymentLabel,
+                                "Status": "Pending"
+                            };
+
+                            fetch(this.googleSheetUrl.trim(), {
+                                method: 'POST',
+                                mode: 'no-cors',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(sheetPayload)
+                            }).catch(err => console.warn('Google Sheet live sync note:', err));
+                        } catch(e) {
+                            console.warn('Google Sheet trigger error:', e);
+                        }
+                    }
+
+                    // 3. COMPLETE ORDER & SHOW SUCCESS RECEIPT MODAL
+                    this.lastCompletedOrder = { ...orderData, cartSnapshot: [...this.cart] };
+                    this.ordersList.unshift(orderData);
+                    this.cart = []; // Clear Cart
+                    this.isSubmittingOrder = false;
+                    this.openCheckoutModal = false;
+                    this.showOrderSuccessModal = true;
+                    this.showToast('Pesanan V2 berhasil dicatat & masuk Riwayat!');
                 },
 
                 get filteredCatalogProducts() {
@@ -934,107 +1051,6 @@
                     return (this.cart || []).reduce((sum, item) => sum + ((item.weight && Number(item.weight) > 0 ? Number(item.weight) : 0) * item.qty), 0);
                 },
 
-                // DIRECT CHECKOUT LOGIC: RECORD TO EXCEL & DATABASE
-                async processDirectCheckout() {
-                    if (!this.checkoutForm.nama || !this.checkoutForm.nama.trim()) {
-                        this.showToast('Silakan isi Nama Pemesan / Anak terlebih dahulu!');
-                        return;
-                    }
-
-                    if (!this.checkoutForm.kelas || !this.checkoutForm.kelas.trim()) {
-                        this.showToast('Silakan isi Kelas terlebih dahulu!');
-                        return;
-                    }
-
-                    if (!this.checkoutForm.asrama || !this.checkoutForm.asrama.trim()) {
-                        this.showToast('Silakan isi Asrama / Kamar terlebih dahulu!');
-                        return;
-                    }
-
-                    if (!this.cart || this.cart.length === 0) {
-                        this.showToast('Keranjang belanja Anda masih kosong!');
-                        return;
-                    }
-
-                    this.isSubmittingOrder = true;
-                    const orderId = 'NH-' + Date.now().toString().slice(-6);
-                    const nowIso = new Date().toISOString();
-                    
-                    const paymentLabel = 'Cash / Tunai';
-
-                    // Format items list summary for Excel
-                    const itemsSummaryText = this.cart.map(item => {
-                        const vStr = item.selectedVariant ? ` (${item.selectedVariant})` : '';
-                        return `${item.name}${vStr} x${item.qty} = ${this.formatRupiah(item.price * item.qty)}`;
-                    }).join(' | ');
-
-                    const orderData = {
-                        order_id: orderId,
-                        name: this.checkoutForm.nama.trim(),
-                        class_name: this.checkoutForm.kelas.trim(),
-                        room: this.checkoutForm.asrama.trim(),
-                        payment: paymentLabel,
-                        items: this.cart,
-                        items_summary: itemsSummaryText,
-                        total_weight: this.cartTotalWeight,
-                        total_price: this.cartSubtotal,
-                        status: 'Pending',
-                        created_at: nowIso
-                    };
-
-                    // 1. SAVE TO SUPABASE OR LOCAL STORAGE
-                    try {
-                        if (db) {
-                            await db.from('orders').insert([orderData]);
-                        }
-                    } catch (err) {
-                        console.warn('Supabase order insert note:', err);
-                    }
-
-                    // Backup to localStorage for Excel Export
-                    try {
-                        let existingLocal = JSON.parse(localStorage.getItem('nuha_local_orders') || '[]');
-                        existingLocal.unshift(orderData);
-                        localStorage.setItem('nuha_local_orders', JSON.stringify(existingLocal));
-                    } catch(e) {}
-
-                    // 2. OPTIONAL: STREAM LIVE TO GOOGLE SHEET WEBHOOK IF CONFIGURED
-                    if (this.googleSheetUrl && this.googleSheetUrl.trim()) {
-                        try {
-                            const sheetPayload = {
-                                "Tanggal": new Date().toLocaleString('id-ID'),
-                                "ID Pesanan": orderId,
-                                "Nama Pemesan": orderData.name,
-                                "Kelas": orderData.class_name,
-                                "Asrama": orderData.room,
-                                "Daftar Pesanan": itemsSummaryText,
-                                "Total Berat (g)": orderData.total_weight,
-                                "Total Harga": orderData.total_price,
-                                "Metode Pembayaran": paymentLabel,
-                                "Status": "Pending"
-                            };
-
-                            fetch(this.googleSheetUrl.trim(), {
-                                method: 'POST',
-                                mode: 'no-cors',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(sheetPayload)
-                            }).catch(err => console.warn('Google Sheet live sync note:', err));
-                        } catch(e) {
-                            console.warn('Google Sheet trigger error:', e);
-                        }
-                    }
-
-                    // 3. COMPLETE ORDER & SHOW SUCCESS RECEIPT MODAL
-                    this.lastCompletedOrder = { ...orderData, cartSnapshot: [...this.cart] };
-                    this.ordersList.unshift(orderData);
-                    this.cart = []; // Clear Cart
-                    this.isSubmittingOrder = false;
-                    this.openCheckoutModal = false;
-                    this.showOrderSuccessModal = true;
-                    this.showToast('Pesanan berhasil dicatat & masuk ke Rekap Excel!');
-                },
-
                 saveGoogleSheetSettings() {
                     localStorage.setItem('nuha_google_sheet_url', this.googleSheetUrl.trim());
                     this.openGoogleSheetSettingsModal = false;
@@ -1046,7 +1062,7 @@
                     let ordersToExport = this.ordersList;
                     if (!ordersToExport || ordersToExport.length === 0) {
                         try {
-                            ordersToExport = JSON.parse(localStorage.getItem('nuha_local_orders') || '[]');
+                            ordersToExport = JSON.parse(localStorage.getItem('nuha_local_orders_v2') || localStorage.getItem('nuha_local_orders') || '[]');
                         } catch(e){}
                     }
 
@@ -1306,6 +1322,12 @@
                     <a href="#produk" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Produk</a>
                     <a href="#ulasan" class="hover:text-teal-600 transition-colors py-1 border-b-2 border-transparent hover:border-teal-600">Rating & Ulasan</a>
                     
+                    <!-- TOMBOL RIWAYAT PEMBELIAN V2 (PELANGGAN) -->
+                    <button x-show="isCustomerLoggedIn" @click="showCustomerOrdersModal = true" class="px-3.5 py-1.5 bg-teal-50 text-teal-700 font-bold rounded-xl hover:bg-teal-100 transition-colors text-xs flex items-center gap-1.5 border border-teal-200 shadow-2xs">
+                        <svg class="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Riwayat Pembelian V2</span>
+                    </button>
+
                     <!-- ADMIN QUICK EXCEL & ORDERS ACCESS BUTTON -->
                     <button x-show="isAdminLoggedIn" @click="showOrdersAdminModal = true" class="px-3.5 py-1.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors text-xs flex items-center gap-1.5 shadow-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -2624,8 +2646,14 @@
                     </div>
                     <div>
                         <h4 class="text-base font-bold text-slate-900" x-text="isAdminLoggedIn ? 'Status: Admin Logged In' : ('Pengguna: ' + loggedInCustomerName)"></h4>
-                        <p class="text-xs text-slate-500 mt-1" x-text="isAdminLoggedIn ? 'Anda memiliki akses penuh pengelolaan toko.' : 'Selamat datang di NUHA DELIVERY.'"></p>
+                        <p class="text-xs text-slate-500 mt-1" x-text="isAdminLoggedIn ? 'Anda memiliki akses penuh pengelolaan toko.' : 'Selamat datang di NUHA DELIVERY V2.'"></p>
                     </div>
+
+                    <button x-show="isCustomerLoggedIn" @click="showCustomerOrdersModal = true; openAuthModal = false" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Lihat Riwayat Pembelian V2 Saya</span>
+                    </button>
+
                     <div class="pt-2 flex flex-col gap-2">
                         <button x-show="isAdminLoggedIn" @click="logoutAdmin()" class="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-colors">
                             Logout Admin
@@ -2662,57 +2690,118 @@
                             </button>
                         </div>
 
+                        <!-- LOGIN FORM -->
                         <form x-show="customerAuthMode === 'login'" @submit.prevent="loginCustomer()" class="space-y-3">
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
-                                <input type="text" x-model="customerForm.username" required placeholder="Masukkan username" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Username / Nama</label>
+                                <input type="text" x-model="customerForm.username" required placeholder="Masukkan Username" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi</label>
-                                <input type="password" x-model="customerForm.password" required placeholder="Masukkan kata sandi" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                                <input type="password" x-model="customerForm.password" required placeholder="Masukkan Password" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50">
                             </div>
-                            <button type="submit" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
+                            <button type="submit" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs">
                                 Masuk Akun
                             </button>
                         </form>
 
+                        <!-- REGISTER FORM -->
                         <form x-show="customerAuthMode === 'register'" @submit.prevent="registerCustomer()" class="space-y-3">
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Username</label>
-                                <input type="text" x-model="customerRegForm.username" required placeholder="Buat username" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Username / Nama</label>
+                                <input type="text" x-model="customerRegForm.username" required placeholder="Nama Lengkap / Username" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50">
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">No. WhatsApp (Opsional)</label>
-                                <input type="text" x-model="customerRegForm.phone" placeholder="Contoh: 08123456789" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp / HP</label>
+                                <input type="tel" x-model="customerRegForm.phone" placeholder="08xxxxxxxxxx" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50">
                             </div>
                             <div>
-                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi</label>
-                                <input type="password" x-model="customerRegForm.password" required placeholder="Buat kata sandi" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Buat Kata Sandi</label>
+                                <input type="password" x-model="customerRegForm.password" required placeholder="Buat Password" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50">
                             </div>
-                            <button type="submit" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
-                                Daftar Akun Baru
+                            <button type="submit" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs">
+                                Daftar & Masuk
                             </button>
                         </form>
                     </div>
 
                     <!-- TAB ADMIN -->
-                    <div x-show="authTab === 'admin'" class="space-y-4">
+                    <div x-show="authTab === 'admin'" class="space-y-3">
                         <form @submit.prevent="loginAdmin()" class="space-y-3">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Username Admin</label>
-                                <input type="text" x-model="adminForm.username" required placeholder="Username Admin" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                                <input type="text" x-model="adminForm.username" required placeholder="Username Admin" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi Admin</label>
-                                <input type="password" x-model="adminForm.password" required placeholder="Kata Sandi Admin" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 bg-white">
+                                <input type="password" x-model="adminForm.password" required placeholder="Password Admin" class="w-full p-2.5 border border-slate-200 rounded-xl text-xs bg-slate-50">
                             </div>
-                            <button type="submit" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs">
-                                Login Mode Admin
+                            <button type="submit" class="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs">
+                                Login Sebagai Admin
                             </button>
                         </form>
                     </div>
                 </div>
             </template>
+        </div>
+    </div>
+
+    <!-- RIWAYAT PEMBELIAN PELANGGAN (CUSTOMER ORDERS MODAL V2) -->
+    <div x-show="showCustomerOrdersModal" x-cloak x-transition class="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto">
+        <div @click.outside="showCustomerOrdersModal = false" class="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative border border-slate-100 my-8 max-h-[90vh] flex flex-col justify-between">
+            <button @click="showCustomerOrdersModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-extrabold text-slate-900">Riwayat Pembelian V2 Saya</h3>
+                        <p class="text-xs text-slate-500">Daftar pesanan Anda yang terdaftar pada sistem website V2</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                    <template x-for="(ord, oIdx) in customerOrders" :key="oIdx">
+                        <div class="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 space-y-2">
+                            <div class="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                                <div>
+                                    <span class="text-xs font-black text-teal-600" x-text="ord.order_id"></span>
+                                    <span class="text-[10px] text-slate-400 block" x-text="ord.created_at ? new Date(ord.created_at).toLocaleString('id-ID') : '-'"></span>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800" x-text="ord.status || 'Pending'"></span>
+                            </div>
+
+                            <div class="text-xs space-y-1">
+                                <p class="text-slate-700 font-semibold" x-text="'Pemesan: ' + (ord.name || '-') + ' (' + (ord.class_name || '-') + ' / ' + (ord.room || '-') + ')'"></p>
+                                <p class="text-slate-600 line-clamp-2" x-text="'Pesanan: ' + (ord.items_summary || '-')"></p>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-2 border-t border-slate-200/60 text-xs">
+                                <span class="text-slate-500 font-medium" x-text="'Metode: ' + (ord.payment || 'Cash')"></span>
+                                <span class="font-black text-slate-900 text-sm" x-text="formatRupiah(ord.total_price)"></span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div x-show="customerOrders.length === 0" class="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-6">
+                        <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <p class="text-xs text-slate-700 font-bold">Belum Ada Riwayat Pembelian V2</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Pesanan baru yang Anda buat di website ini akan otomatis tampil di sini.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-4 flex justify-end">
+                <button @click="showCustomerOrdersModal = false" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">
+                    Tutup
+                </button>
+            </div>
         </div>
     </div>
 
