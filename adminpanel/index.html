@@ -16,6 +16,9 @@
     <!-- SheetJS for Excel Spreadsheet Export -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
+    <!-- Chart.js CDN for Analytics Graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <!-- Google Fonts (Inter) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -55,7 +58,7 @@
                 isLoggedIn: localStorage.getItem('nuha_admin_logged_in') === 'true',
                 loginForm: { username: '', password: '' },
                 categories: ['Minuman', 'Kudapan', 'Makanan Berat', 'Kebutuhan Pribadi'],
-                activeTab: 'products', // 'products' | 'add' | 'testimonials' | 'orders' | 'orders_v2'
+                activeTab: 'products', // 'products' | 'add' | 'testimonials' | 'orders' | 'orders_v2' | 'analytics'
                 
                 searchQuery: '',
                 selectedCategoryFilter: 'Semua',
@@ -66,6 +69,12 @@
                 selectedDateV2: '',
                 selectedMonthV2: 'Semua',
                 searchOrderV2Query: '',
+
+                // Analytics State
+                analyticsStartDate: '',
+                analyticsEndDate: '',
+                analyticsSourceFilter: 'all', // 'all' | 'web1' | 'web2'
+                chartInstance: null,
 
                 openEditModal: false,
                 editForm: {
@@ -111,7 +120,16 @@
                 init() {
                     if (this.isLoggedIn) {
                         this.fetchAllData();
+                        this.setDefaultAnalyticsDates();
                     }
+
+                    this.$watch('activeTab', (newTab) => {
+                        if (newTab === 'analytics') {
+                            this.$nextTick(() => {
+                                this.updateAnalyticsChart();
+                            });
+                        }
+                    });
                 },
 
                 login() {
@@ -126,6 +144,7 @@
                         localStorage.setItem('nuha_admin_logged_in', 'true');
                         this.showToast('Berhasil masuk ke Dashboard Admin!', 'success');
                         this.fetchAllData();
+                        this.setDefaultAnalyticsDates();
                     } else {
                         this.showToast('Username atau password salah!', 'error');
                     }
@@ -144,6 +163,9 @@
                         this.fetchOrders(),
                         this.fetchOrdersV2()
                     ]);
+                    if (this.activeTab === 'analytics') {
+                        this.updateAnalyticsChart();
+                    }
                 },
 
                 normalizeOrder(o, defaultSource = 'Web 1') {
@@ -199,6 +221,214 @@
                         source,
                         isV2
                     };
+                },
+
+                setDefaultAnalyticsDates() {
+                    const today = new Date();
+                    const thirtyDaysAgo = new Date();
+                    thirtyDaysAgo.setDate(today.getDate() - 30);
+
+                    const formatDateInput = (d) => {
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        return `${year}-${month}-${day}`;
+                    };
+
+                    this.analyticsEndDate = formatDateInput(today);
+                    this.analyticsStartDate = formatDateInput(thirtyDaysAgo);
+                },
+
+                setQuickRange(type) {
+                    const today = new Date();
+                    const startDate = new Date();
+
+                    if (type === '7days') {
+                        startDate.setDate(today.getDate() - 7);
+                    } else if (type === '30days') {
+                        startDate.setDate(today.getDate() - 30);
+                    } else if (type === 'thisMonth') {
+                        startDate.setDate(1);
+                    }
+
+                    const formatDateInput = (d) => {
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        return `${year}-${month}-${day}`;
+                    };
+
+                    this.analyticsStartDate = formatDateInput(startDate);
+                    this.analyticsEndDate = formatDateInput(today);
+                    this.updateAnalyticsChart();
+                },
+
+                get combinedAllOrders() {
+                    return [...this.orders, ...this.ordersV2];
+                },
+
+                get filteredAnalyticsOrders() {
+                    let items = this.combinedAllOrders;
+
+                    if (this.analyticsSourceFilter === 'web1') {
+                        items = items.filter(o => !o.isV2);
+                    } else if (this.analyticsSourceFilter === 'web2') {
+                        items = items.filter(o => o.isV2);
+                    }
+
+                    if (this.analyticsStartDate && this.analyticsEndDate) {
+                        const start = new Date(this.analyticsStartDate + 'T00:00:00').getTime();
+                        const end = new Date(this.analyticsEndDate + 'T23:59:59').getTime();
+
+                        items = items.filter(o => {
+                            if (!o.created_at) return false;
+                            const orderTime = new Date(o.created_at).getTime();
+                            if (isNaN(orderTime)) return false;
+                            return orderTime >= start && orderTime <= end;
+                        });
+                    }
+
+                    return items;
+                },
+
+                get analyticsSummary() {
+                    const list = this.filteredAnalyticsOrders;
+                    const totalRevenue = list.reduce((sum, o) => sum + (o.total_price || 0), 0);
+                    const totalOrders = list.length;
+                    const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+
+                    // Compute top selling item names
+                    const productCountMap = {};
+                    list.forEach(o => {
+                        if (Array.isArray(o.items) && o.items.length > 0) {
+                            o.items.forEach(it => {
+                                const pname = it.name || it.nama || 'Item';
+                                const qty = Number(it.qty || 1);
+                                productCountMap[pname] = (productCountMap[pname] || 0) + qty;
+                            });
+                        }
+                    });
+
+                    let topProduct = '-';
+                    let maxQty = 0;
+                    Object.keys(productCountMap).forEach(pname => {
+                        if (productCountMap[pname] > maxQty) {
+                            maxQty = productCountMap[pname];
+                            topProduct = `${pname} (${maxQty} item)`;
+                        }
+                    });
+
+                    return {
+                        totalRevenue,
+                        totalOrders,
+                        avgOrderValue,
+                        topProduct
+                    };
+                },
+
+                updateAnalyticsChart() {
+                    const canvas = document.getElementById('revenueAnalyticsChart');
+                    if (!canvas) return;
+
+                    const list = this.filteredAnalyticsOrders;
+
+                    // Generate list of dates between startDate and endDate
+                    const dailyMap = {};
+                    if (this.analyticsStartDate && this.analyticsEndDate) {
+                        let cur = new Date(this.analyticsStartDate + 'T00:00:00');
+                        const end = new Date(this.analyticsEndDate + 'T00:00:00');
+
+                        while (cur <= end) {
+                            const year = cur.getFullYear();
+                            const month = String(cur.getMonth() + 1).padStart(2, '0');
+                            const day = String(cur.getDate()).padStart(2, '0');
+                            const key = `${year}-${month}-${day}`;
+                            dailyMap[key] = 0;
+                            cur.setDate(cur.getDate() + 1);
+                        }
+                    }
+
+                    list.forEach(o => {
+                        if (!o.created_at) return;
+                        const d = new Date(o.created_at);
+                        if (isNaN(d.getTime())) return;
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        const key = `${year}-${month}-${day}`;
+
+                        if (dailyMap.hasOwnProperty(key)) {
+                            dailyMap[key] += Number(o.total_price || 0);
+                        } else {
+                            dailyMap[key] = Number(o.total_price || 0);
+                        }
+                    });
+
+                    const labels = Object.keys(dailyMap).sort().map(dateStr => {
+                        const parts = dateStr.split('-');
+                        if (parts.length === 3) {
+                            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                        }
+                        return dateStr;
+                    });
+
+                    const dataValues = Object.keys(dailyMap).sort().map(k => dailyMap[k]);
+
+                    if (this.chartInstance) {
+                        this.chartInstance.destroy();
+                    }
+
+                    const ctx = canvas.getContext('2d');
+                    this.chartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Pendapatan Harian (Rp)',
+                                data: dataValues,
+                                borderColor: '#0d9488',
+                                backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.3,
+                                pointBackgroundColor: '#0d9488',
+                                pointHoverRadius: 6,
+                                pointRadius: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top',
+                                    labels: { font: { family: 'Inter', weight: 'bold', size: 12 } }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (context) => {
+                                            return ' Pendapatan: Rp' + Number(context.raw || 0).toLocaleString('id-ID');
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        font: { family: 'Inter', size: 11 },
+                                        callback: (val) => 'Rp' + Number(val).toLocaleString('id-ID')
+                                    },
+                                    grid: { color: '#f1f5f9' }
+                                },
+                                x: {
+                                    ticks: { font: { family: 'Inter', size: 10 } },
+                                    grid: { display: false }
+                                }
+                            }
+                        }
+                    });
                 },
 
                 formatPaymentMethod(p) {
@@ -1048,6 +1278,11 @@
             <!-- TAB NAVIGATION BAR -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 pb-3 gap-3">
                 <div class="flex flex-wrap gap-2">
+                    <!-- TOMBOL ANALYTICS / GRAFIK PENDAPATAN -->
+                    <button @click="activeTab = 'analytics'" :class="activeTab === 'analytics' ? 'bg-teal-700 text-white shadow-md ring-2 ring-teal-300' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2">
+                        <svg class="w-4 h-4 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v16H4z"/></svg>
+                        <span>Analytics Pendapatan</span>
+                    </button>
                     <button @click="activeTab = 'products'" :class="activeTab === 'products' ? 'bg-teal-600 text-white shadow-xs' : 'bg-white text-slate-700 hover:bg-slate-200'" class="px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all">
                         Daftar Produk (<span x-text="filteredProducts.length"></span>)
                     </button>
@@ -1078,6 +1313,103 @@
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                     <span>Refresh Data</span>
                 </button>
+            </div>
+
+            <!-- TAB ANALYTICS: GRAFIK PENDAPATAN & KONTROL DD/MM/YYYY -->
+            <div x-show="activeTab === 'analytics'" class="space-y-6">
+                <!-- CONTROLS & DATE SETTING -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
+                    <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                        <div>
+                            <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
+                                <span>Analisis Grafis Pendapatan</span>
+                                <span class="bg-teal-50 text-teal-700 text-xs font-bold px-2.5 py-0.5 rounded-full border border-teal-200">Real-time</span>
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Atur rentang tanggal untuk menganalisis total pendapatan dan tren transaksi.</p>
+                        </div>
+
+                        <!-- PRESETS RENTANG CEPAT -->
+                        <div class="flex flex-wrap items-center gap-1.5 self-stretch sm:self-auto">
+                            <span class="text-xs font-bold text-slate-400 mr-1">Preset:</span>
+                            <button @click="setQuickRange('7days')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors">
+                                7 Hari Terakhir
+                            </button>
+                            <button @click="setQuickRange('30days')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors">
+                                30 Hari Terakhir
+                            </button>
+                            <button @click="setQuickRange('thisMonth')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors">
+                                Bulan Ini
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- KONTROL DD/MM/YYYY TANGGAL MULAI & AKHIR -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+                        <div class="lg:col-span-4">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Dari Tanggal (Mulai)</label>
+                            <div class="relative">
+                                <input type="date" x-model="analyticsStartDate" @change="updateAnalyticsChart()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-4">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Sampai Tanggal (Selesai)</label>
+                            <div class="relative">
+                                <input type="date" x-model="analyticsEndDate" @change="updateAnalyticsChart()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-4">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Sumber Data Web</label>
+                            <select x-model="analyticsSourceFilter" @change="updateAnalyticsChart()" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50">
+                                <option value="all">Semua Sumber (Web 1 + Web 2)</option>
+                                <option value="web1">Hanya Website 1</option>
+                                <option value="web2">Hanya Website V2</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARDS RINGKASAN PERFORMANSI ANALYTICS -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-gradient-to-br from-teal-600 to-teal-800 text-white p-5 rounded-3xl shadow-lg relative overflow-hidden">
+                        <div class="relative z-10">
+                            <span class="text-[11px] font-bold text-teal-200 uppercase tracking-wider block mb-1">Total Omset Pendapatan</span>
+                            <span class="text-2xl font-black block" x-text="formatRupiah(analyticsSummary.totalRevenue)"></span>
+                            <span class="text-[10px] text-teal-100 font-medium mt-2 block">Berdasarkan filter tanggal pilihan</span>
+                        </div>
+                        <svg class="w-20 h-20 absolute -right-3 -bottom-3 text-white/10" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm12 5a1 1 0 100-2 1 1 0 000 2zM2 12a2 2 0 002 2h12a2 2 0 002-2v-1a2 2 0 00-2-2H4a2 2 0 00-2 2v1z" clip-rule="evenodd"/></svg>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Transaksi Selesai</span>
+                        <span class="text-2xl font-black text-slate-900" x-text="analyticsSummary.totalOrders + ' Pesanan'"></span>
+                        <span class="text-[10px] text-slate-400 block mt-2">Jumlah pesanan masuk</span>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Rata-rata Nilai Pesanan</span>
+                        <span class="text-2xl font-black text-emerald-600" x-text="formatRupiah(analyticsSummary.avgOrderValue)"></span>
+                        <span class="text-[10px] text-slate-400 block mt-2">Nilai belanja per transaksi</span>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Produk Terlaris</span>
+                        <span class="text-sm font-extrabold text-indigo-700 block truncate" x-text="analyticsSummary.topProduct"></span>
+                        <span class="text-[10px] text-slate-400 block mt-2">Item terpopuler di periode ini</span>
+                    </div>
+                </div>
+
+                <!-- CANVAS GRAFIK CHART.JS -->
+                <div class="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-sm font-black text-slate-900 tracking-tight">Grafik Fluktuasi Pendapatan Harian</h4>
+                        <span class="text-xs text-slate-400 font-mono" x-text="analyticsStartDate && analyticsEndDate ? 'Periode: ' + analyticsStartDate + ' s/d ' + analyticsEndDate : ''"></span>
+                    </div>
+                    <div class="relative w-full h-80 sm:h-96">
+                        <canvas id="revenueAnalyticsChart"></canvas>
+                    </div>
+                </div>
             </div>
 
             <!-- TAB 1: DAFTAR PRODUK TABEL -->
