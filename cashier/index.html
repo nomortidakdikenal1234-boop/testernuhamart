@@ -54,6 +54,8 @@
                 selectAll: false,
                 searchQuery: '',
                 filterStatus: 'All',
+                startDate: '',
+                endDate: '',
                 dbStatus: 'connecting',
                 dbErrorMessage: '',
                 showDebugModal: false,
@@ -340,6 +342,24 @@
                     }
                 },
 
+                // Helper format tanggal DD/MM/YYYY
+                formatDateDDMMYYYY(dateStr, includeTime = true) {
+                    if (!dateStr) return '-';
+                    try {
+                        const d = new Date(dateStr);
+                        if (isNaN(d.getTime())) return dateStr;
+                        const day = String(d.getDate()).padStart(2, '0');
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const year = d.getFullYear();
+                        if (!includeTime) return `${day}/${month}/${year}`;
+                        const hours = String(d.getHours()).padStart(2, '0');
+                        const minutes = String(d.getMinutes()).padStart(2, '0');
+                        return `${day}/${month}/${year} ${hours}:${minutes}`;
+                    } catch(e) {
+                        return dateStr;
+                    }
+                },
+
                 // --- FITUR CETAK / EXPORT KE EXCEL ---
                 exportToExcel() {
                     if (!this.filteredOrders || this.filteredOrders.length === 0) {
@@ -355,7 +375,7 @@
                     const excelData = this.filteredOrders.map((o, index) => ({
                         'No': index + 1,
                         'ID Order': o.order_id,
-                        'Waktu Pesan': this.formatDate(o.created_at),
+                        'Waktu Pesan (DD/MM/YYYY)': this.formatDateDDMMYYYY(o.created_at, true),
                         'Nama Pemesan': o.name,
                         'Kelas': o.class_name,
                         'Kamar / Asrama': o.room,
@@ -374,7 +394,7 @@
                     worksheet['!cols'] = [
                         { wch: 5 },  // No
                         { wch: 14 }, // ID Order
-                        { wch: 22 }, // Waktu Pesan
+                        { wch: 22 }, // Waktu Pesan DD/MM/YYYY
                         { wch: 24 }, // Nama Pemesan
                         { wch: 16 }, // Kelas
                         { wch: 16 }, // Kamar
@@ -390,10 +410,11 @@
                     const workbook = XLSX.utils.book_new();
                     XLSX.utils.book_append_sheet(workbook, worksheet, "Order Log V2");
 
-                    const dateStr = new Date().toISOString().split('T')[0];
+                    const now = new Date();
+                    const dateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth()+1).padStart(2, '0')}-${now.getFullYear()}`;
                     XLSX.writeFile(workbook, `Data_Pesanan_Nuha_Delivery_${dateStr}.xlsx`);
 
-                    this.showToast('Berhasil mengunduh Laporan Excel!', 'success');
+                    this.showToast('Berhasil mengunduh Laporan Excel (Format DD/MM/YYYY)!', 'success');
                 },
 
                 saveOrdersToLocalStorage() {
@@ -426,6 +447,16 @@
                             (o.class_name && o.class_name.toLowerCase().includes(q)) ||
                             (o.room && o.room.toLowerCase().includes(q))
                         );
+                    }
+
+                    if (this.startDate) {
+                        const start = new Date(this.startDate + 'T00:00:00');
+                        result = result.filter(o => new Date(o.created_at) >= start);
+                    }
+
+                    if (this.endDate) {
+                        const end = new Date(this.endDate + 'T23:59:59');
+                        result = result.filter(o => new Date(o.created_at) <= end);
                     }
 
                     return result;
@@ -469,16 +500,7 @@
                 },
 
                 formatDate(dateStr) {
-                    if (!dateStr) return '-';
-                    try {
-                        const d = new Date(dateStr);
-                        return d.toLocaleString('id-ID', {
-                            day: '2-digit', month: 'short', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit'
-                        });
-                    } catch(e) {
-                        return dateStr;
-                    }
+                    return this.formatDateDDMMYYYY(dateStr, true);
                 },
 
                 showToast(msg, type = 'info') {
@@ -585,16 +607,25 @@
                 </button>
             </div>
 
-            <!-- Search and Action Buttons -->
+            <!-- Search, Date Filters, and Action Buttons -->
             <div class="flex items-center flex-wrap gap-2 w-full md:w-auto justify-end">
+                <!-- Date Filters (DD/MM/YYYY) -->
+                <div class="flex items-center gap-1.5 bg-slate-50 p-1.5 border border-slate-200 rounded-xl text-xs">
+                    <span class="text-[10px] font-bold text-slate-500 pl-1">Dari:</span>
+                    <input type="date" x-model="startDate" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500">
+                    <span class="text-[10px] font-bold text-slate-500">s/d:</span>
+                    <input type="date" x-model="endDate" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-teal-500">
+                    <button x-show="startDate || endDate" @click="startDate = ''; endDate = ''" class="text-rose-500 font-bold hover:text-rose-700 px-1" title="Reset Filter Tanggal">✕</button>
+                </div>
+
                 <!-- Search Input -->
-                <div class="relative flex-1 sm:w-64 md:w-56">
-                    <input type="text" x-model="searchQuery" placeholder="Cari nama, ID, kelas..." class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-slate-50">
+                <div class="relative flex-1 sm:w-48 md:w-44">
+                    <input type="text" x-model="searchQuery" placeholder="Cari nama, ID..." class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-slate-50">
                     <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                 </div>
 
                 <!-- Excel Export Button -->
-                <button @click="exportToExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs px-3 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5" title="Cetak / Ekspor ke File Excel">
+                <button @click="exportToExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs px-3 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5" title="Cetak / Ekspor ke File Excel (Format DD/MM/YYYY)">
                     <svg class="w-4 h-4 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     <span>Cetak Excel</span>
                 </button>
